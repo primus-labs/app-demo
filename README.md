@@ -33,7 +33,7 @@
 
 | Contract          | Address                                    |
 | ----------------- | ------------------------------------------ |
-| PrivyToken(PRIVY) | 0x7efBfe88982DDE3Cf2eA359A0dcc2D47f0A08a15 |
+| PrivyToken(PRIVY) | 0x742CdE078759c2b5a77a93B5e4222a5ba13bfE2c |
 
 <br/>
 

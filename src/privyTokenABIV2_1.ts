@@ -23,12 +23,12 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "allowance",
           "type": "bytes32"
         },
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "needed",
           "type": "bytes32"
         }
@@ -44,12 +44,12 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "balance",
           "type": "bytes32"
         },
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "needed",
           "type": "bytes32"
         }
@@ -136,7 +136,7 @@ export const privyTokenABI = [
         },
         {
           "indexed": false,
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "value",
           "type": "bytes32"
         }
@@ -187,7 +187,7 @@ export const privyTokenABI = [
         },
         {
           "indexed": false,
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "value",
           "type": "bytes32"
         }
@@ -224,7 +224,7 @@ export const privyTokenABI = [
       "name": "allowance",
       "outputs": [
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "",
           "type": "bytes32"
         }
@@ -257,7 +257,7 @@ export const privyTokenABI = [
               "type": "bytes"
             }
           ],
-          "internalType": "struct uve_uint256",
+          "internalType": "struct uve_uint64",
           "name": "value",
           "type": "tuple"
         }
@@ -284,7 +284,7 @@ export const privyTokenABI = [
       "name": "balanceOf",
       "outputs": [
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "",
           "type": "bytes32"
         }
@@ -312,7 +312,7 @@ export const privyTokenABI = [
               "type": "bytes"
             }
           ],
-          "internalType": "struct uve_uint256",
+          "internalType": "struct uve_uint64",
           "name": "value",
           "type": "tuple"
         }
@@ -353,7 +353,7 @@ export const privyTokenABI = [
       "name": "getTotalHandles",
       "outputs": [
         {
-          "internalType": "ve_uint256[]",
+          "internalType": "ve_uint64[]",
           "name": "",
           "type": "bytes32[]"
         }
@@ -400,7 +400,7 @@ export const privyTokenABI = [
               "type": "bytes"
             }
           ],
-          "internalType": "struct uve_uint256",
+          "internalType": "struct uve_uint64",
           "name": "value",
           "type": "tuple"
         }
@@ -467,7 +467,7 @@ export const privyTokenABI = [
       "name": "totalSupply",
       "outputs": [
         {
-          "internalType": "ve_uint256",
+          "internalType": "ve_uint64",
           "name": "",
           "type": "bytes32"
         }
@@ -500,7 +500,7 @@ export const privyTokenABI = [
               "type": "bytes"
             }
           ],
-          "internalType": "struct uve_uint256",
+          "internalType": "struct uve_uint64",
           "name": "value",
           "type": "tuple"
         }
@@ -546,7 +546,7 @@ export const privyTokenABI = [
               "type": "bytes"
             }
           ],
-          "internalType": "struct uve_uint256",
+          "internalType": "struct uve_uint64",
           "name": "value",
           "type": "tuple"
         }

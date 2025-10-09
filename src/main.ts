@@ -43,7 +43,7 @@ async function encrypt(value: number | bigint) {
     signer as Wallet,
     ACL_ADDRESS,
     value,
-    FheType.ve_uint256,
+    FheType.ve_uint64,
     null,
     { isMock: isMock }
   );
@@ -53,7 +53,7 @@ async function decrypt(handle: string, timeout: number = 30000) {
   return await requestDecrypt(
     signer as Wallet,
     ACL_ADDRESS,
-    FheType.ve_uint256,
+    FheType.ve_uint64,
     handle,
     { isMock: isMock, timeout: timeout }
   );
