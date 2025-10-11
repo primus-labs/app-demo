@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayloadType = exports.FheType = exports.EncodingType = exports.MOCK_SERVER_PK_FILE = exports.SERVER_PK_FILE = exports.HANDLE_VERSION = void 0;
+exports.PayloadType = exports.Operators = exports.FheType = exports.EncodingType = exports.MOCK_SERVER_PK_FILE = exports.SERVER_PK_FILE = exports.HANDLE_VERSION = void 0;
 exports.requestPk = requestPk;
 exports.requestEncrypt = requestEncrypt;
 exports.requestDecrypt = requestDecrypt;
@@ -31,6 +31,27 @@ var FheType;
     FheType[FheType["ve_uint128"] = 5] = "ve_uint128";
     FheType[FheType["ve_uint256"] = 6] = "ve_uint256";
 })(FheType || (exports.FheType = FheType = {}));
+var Operators;
+(function (Operators) {
+    Operators[Operators["fheNone"] = 0] = "fheNone";
+    Operators[Operators["fheAdd"] = 1] = "fheAdd";
+    Operators[Operators["fheSub"] = 2] = "fheSub";
+    Operators[Operators["fheMul"] = 3] = "fheMul";
+    Operators[Operators["fheDiv"] = 4] = "fheDiv";
+    Operators[Operators["fheBitAnd"] = 5] = "fheBitAnd";
+    Operators[Operators["fheBitOr"] = 6] = "fheBitOr";
+    Operators[Operators["fheBitXor"] = 7] = "fheBitXor";
+    Operators[Operators["fheBitNot"] = 8] = "fheBitNot";
+    Operators[Operators["fheEq"] = 9] = "fheEq";
+    Operators[Operators["fheNe"] = 10] = "fheNe";
+    Operators[Operators["fheGe"] = 11] = "fheGe";
+    Operators[Operators["fheGt"] = 12] = "fheGt";
+    Operators[Operators["fheLe"] = 13] = "fheLe";
+    Operators[Operators["fheLt"] = 14] = "fheLt";
+    Operators[Operators["fheIfThenElse"] = 15] = "fheIfThenElse";
+    Operators[Operators["trivialEncrypt"] = 16] = "trivialEncrypt";
+    Operators[Operators["verifyAttestation"] = 17] = "verifyAttestation";
+})(Operators || (exports.Operators = Operators = {}));
 function getTypeLength(fheType) {
     switch (fheType) {
         case FheType.ve_bool: return 1;
@@ -69,7 +90,7 @@ async function requestPk(pkFile = exports.SERVER_PK_FILE, options) {
     const handleBytes = Buffer.from((0, utils_1.fromHexString)(response.result.pk));
     fs_1.default.writeFileSync(pkFile, handleBytes);
 }
-async function requestEncrypt(wallet, aclContractAddress, value, fheType, attObj, options) {
+async function requestEncrypt(wallet, aclContractAddress, value, fheType, chainId, attObj, options) {
     let pkFile = exports.MOCK_SERVER_PK_FILE;
     if (!(options && options.isMock)) {
         await requestPk(exports.SERVER_PK_FILE, options);
@@ -157,6 +178,10 @@ async function requestEncrypt(wallet, aclContractAddress, value, fheType, attObj
     for (let i = 20; i < 32; i++) {
         handleBytes[i] = 0;
     }
+    const buffChainId = (0, utils_1.fromHexString)(chainId.toString(16).padStart(16, '0'));
+    handleBytes.set(buffChainId, 20);
+    handleBytes[28] = 0x00;
+    handleBytes[29] = 0x00;
     handleBytes[30] = fheType;
     handleBytes[31] = exports.HANDLE_VERSION;
     const handleBytesHex = Buffer.from(handleBytes).toString("hex");
@@ -262,6 +287,7 @@ async function _requestDecrypt(wallet, aclContractAddress, fheType, handle, opti
     return response;
 }
 async function requestDecrypt(wallet, aclContractAddress, fheType, handle, options) {
+    const verbose = options?.verbose || 0;
     if ((0, utils_1.bytesToBigInt)((0, utils_1.fromHexString)(handle)) == 0n) {
         return 0n;
     }
@@ -269,15 +295,16 @@ async function requestDecrypt(wallet, aclContractAddress, fheType, handle, optio
         const aclContract = (0, utils_1.getACLContract)(aclContractAddress, wallet);
         let tx = await aclContract.isAllowed(handle, wallet.address)
             || await aclContract['isAllowedForDecryption(bytes32,address)'](handle, wallet.address);
-        console.warn(`${handle.slice(0, 8)}...${handle.slice(60)}`, "isAllowed for", `${wallet.address.slice(0, 8)}...${wallet.address.slice(36)}`, "(to decrypt) ?", tx);
+        if (verbose > 0) {
+            console.log(`${handle.slice(0, 8)}...${handle.slice(60)}`, "isAllowed for", `${wallet.address.slice(0, 8)}...${wallet.address.slice(36)}`, "(to decrypt) ?", tx);
+        }
     }
     const start = Date.now();
     const timeout = options?.timeout && options.timeout > 0 ? options.timeout : 30_000;
     const interval = options?.interval || 1000;
-    const verbose = options?.verbose || 0;
     let counter = 0;
     while (true) {
-        const elapsed = Date.now() - start;
+        let elapsed = Date.now() - start;
         if (elapsed >= timeout && counter > 0) {
             throw new Error(`timeout after ${elapsed}ms`);
         }
@@ -285,10 +312,12 @@ async function requestDecrypt(wallet, aclContractAddress, fheType, handle, optio
         let response;
         try {
             response = await _requestDecrypt(wallet, aclContractAddress, fheType, handle, options);
+            elapsed = Date.now() - start;
         }
         catch (error) {
             console.warn("_requestDecrypt error:", error);
             await new Promise((resolve) => setTimeout(resolve, interval));
+            elapsed = Date.now() - start;
             continue;
         }
         if (response.error) {

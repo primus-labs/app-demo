@@ -31,11 +31,38 @@ const signer = PRIVATE_KEY ? new EthersT.Wallet(PRIVATE_KEY, provider) : null;
 
 // ================= Helpers =================
 
-function getPrivyTokenContract() {
-  return new EthersT.Contract(PRIVY_TOKEN_ADDRESS, privyTokenABI, signer ?? provider);
+let _chainId: any = null;
+async function getChainID() {
+  if (!_chainId) {
+    _chainId = await provider.getNetwork().then(n => n.chainId) as number;
+  }
+  return _chainId;
 }
+
+let _privyTokenContract: any = null;
+function getPrivyTokenContract() {
+  // return new EthersT.Contract(PRIVY_TOKEN_ADDRESS, privyTokenABI, signer ?? provider);
+  if (!_privyTokenContract) {
+    _privyTokenContract = new EthersT.Contract(PRIVY_TOKEN_ADDRESS, privyTokenABI, signer ?? provider);
+  }
+  return _privyTokenContract;
+}
+
+let _decimals: any = null;
+async function getDecimals(contract: any) {
+  // return await contract.decimals();
+  if (!_decimals) {
+    _decimals = await contract.decimals();
+  }
+  return _decimals;
+}
+let _aclContract: any = null;
 function getACLContract() {
-  return _getACLContract(ACL_ADDRESS, signer ?? provider);
+  // return _getACLContract(ACL_ADDRESS, signer ?? provider);
+  if (!_aclContract) {
+    _aclContract = _getACLContract(ACL_ADDRESS, signer ?? provider);
+  }
+  return _aclContract;
 }
 
 async function encrypt(value: number | bigint) {
@@ -44,6 +71,7 @@ async function encrypt(value: number | bigint) {
     ACL_ADDRESS,
     value,
     FheType.ve_uint64,
+    await getChainID(),
     null,
     { isMock: isMock }
   );
@@ -97,7 +125,7 @@ program
     console.log("TotalSupply handle", totalSupplyHandle);
 
     const supply = await decrypt(totalSupplyHandle);
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
     console.log("TotalSupply:", EthersT.formatUnits(supply, decimals));
   });
 
@@ -111,7 +139,7 @@ program
     console.log("Balance handle", balanceHandle);
 
     const balance = await decrypt(balanceHandle);
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
     console.log("Balance", EthersT.formatUnits(balance, decimals));
   });
 
@@ -126,7 +154,7 @@ program
     console.log("Allowance handle", allowanceHandle);
 
     const allowance = await decrypt(allowanceHandle);
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
     console.log("Allowance", EthersT.formatUnits(allowance, decimals));
   });
 
@@ -138,7 +166,7 @@ program
   .action(async (opts) => {
     if (!signer) throw new Error("PRIVATE_KEY required for mint");
     const contract = getPrivyTokenContract();
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
 
     const amountHandle = await encrypt(EthersT.parseUnits(opts.amount, decimals));
     console.log("Amount handle", "0x" + Buffer.from(amountHandle.handle).toString("hex"));
@@ -155,7 +183,7 @@ program
   .action(async (opts) => {
     if (!signer) throw new Error("PRIVATE_KEY required for burn");
     const contract = getPrivyTokenContract();
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
 
     const amountHandle = await encrypt(EthersT.parseUnits(opts.amount, decimals));
     console.log("Amount handle", "0x" + Buffer.from(amountHandle.handle).toString("hex"));
@@ -175,7 +203,7 @@ program
   .action(async (opts) => {
     if (!signer) throw new Error("PRIVATE_KEY required for transfer");
     const contract = getPrivyTokenContract();
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
 
     const amountHandle = await encrypt(EthersT.parseUnits(opts.amount, decimals));
     console.log("Amount handle", "0x" + Buffer.from(amountHandle.handle).toString("hex"));
@@ -193,7 +221,7 @@ program
   .action(async (opts) => {
     if (!signer) throw new Error("PRIVATE_KEY required for approve");
     const contract = getPrivyTokenContract();
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
 
     const amountHandle = await encrypt(EthersT.parseUnits(opts.amount, decimals));
     console.log("Amount handle", "0x" + Buffer.from(amountHandle.handle).toString("hex"));
@@ -212,7 +240,7 @@ program
   .action(async (opts) => {
     if (!signer) throw new Error("PRIVATE_KEY required for transferFrom");
     const contract = getPrivyTokenContract();
-    const decimals = await contract.decimals();
+    const decimals = await getDecimals(contract);
 
     const amountHandle = await encrypt(EthersT.parseUnits(opts.amount, decimals));
     console.log("Amount handle", "0x" + Buffer.from(amountHandle.handle).toString("hex"));
@@ -336,6 +364,6 @@ program
 
 // main.ts
 program.parseAsync().catch((err) => {
-  console.error("Error:", err);
+  // console.error("Error:", err);
   process.exit(1);
 });
