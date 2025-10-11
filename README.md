@@ -29,11 +29,12 @@
 
 ## Overview
 
-**Addresses (Sepolia):**
+**Addresses:**
 
-| Contract          | Address                                    |
-| ----------------- | ------------------------------------------ |
-| PrivyToken(PRIVY) | 0x742CdE078759c2b5a77a93B5e4222a5ba13bfE2c |
+| Contract          | Address                                    | Chain(ID)           |
+| ----------------- | ------------------------------------------ | ------------------- |
+| PrivyToken(PRIVY) | 0x906F19d85c99E8E600B90eC49aa9711bac47701f | Base Sepolia(84532) |
+
 
 <br/>
 
@@ -42,7 +43,7 @@
 
 ## Configuration
 
-- Copy `.env.sepolia` to `.env`.
+- Copy `.env.sepolia.base` to `.env`.
 - Set up your wallet's private key `PRIVATE_KEY`.
 
 
