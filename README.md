@@ -33,7 +33,7 @@
 
 | Contract          | Address                                    | Chain(ID)           |
 | ----------------- | ------------------------------------------ | ------------------- |
-| PrivyToken(PRIVY) | 0x906F19d85c99E8E600B90eC49aa9711bac47701f | Base Sepolia(84532) |
+| PrivyToken(PRIVY) | 0x994eDfc783E0D42489Ae5fAd9DD90B253e97a191 | Base Sepolia(84532) |
 
 
 <br/>
