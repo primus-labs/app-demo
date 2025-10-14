@@ -63,13 +63,12 @@
 Before using this tool, execute the following command:
 
 ```sh
-sudo apt install libomp-dev
+sudo apt install libomp-dev # on ubuntu
 npm install
 npm run build
 ```
 
 **Requirements:**
-- Ubuntu OS. (Currently only supports **Ubuntu 22.04**)
 - node v22+
 
 <br/>

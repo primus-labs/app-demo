@@ -108,7 +108,7 @@ async function requestEncrypt(wallet, aclContractAddress, value, fheType, chainI
     if (verbose > 1) {
         console.log('input', input);
     }
-    const valueBytes32 = (0, fhe_api_1.encryptInteger)(pkFile, input);
+    const valueBytes32 = await (0, fhe_api_1.encryptInteger)(pkFile, input);
     const valueHex = Buffer.from(valueBytes32).toString("hex");
     if (verbose > 1) {
         console.log('valueHex', valueHex.slice(0, 32), "...", valueHex.slice(valueHex.length - 16));
