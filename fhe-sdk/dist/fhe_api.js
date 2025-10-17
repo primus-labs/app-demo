@@ -5,43 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCiphertext = exports.init = void 0;
 exports.encryptInteger = encryptInteger;
-const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const platform_1 = require("./platform");
-const ffi_napi_1 = __importDefault(require("ffi-napi"));
-const ref_napi_1 = __importDefault(require("ref-napi"));
-const Int = ref_napi_1.default.types.int;
-const IntPtr = ref_napi_1.default.refType(Int);
-const UInt8 = ref_napi_1.default.types.uint8;
-const UInt8Ptr = ref_napi_1.default.refType(UInt8);
-const CString = ref_napi_1.default.types.CString;
 const MAX_NATIVE_OUTPUT_SIZE = 100_000_000;
-function loadNativeEncryptor() {
-    const libPath = path_1.default.resolve(__dirname, "./native/libfhe-api.so");
-    if (!fs_1.default.existsSync(libPath)) {
-        throw new Error(`Native library not found at ${libPath}`);
-    }
-    const libfhe = ffi_napi_1.default.Library(libPath, {
-        encrypt_integer: [UInt8Ptr, [IntPtr, CString, UInt8Ptr, Int]],
-        encrypt_integer_ex: [UInt8Ptr, [IntPtr, CString, Int, UInt8Ptr, Int]],
-        free_data: ["void", [UInt8Ptr]],
-    });
-    return async (pk, input) => {
-        const outLenPtr = ref_napi_1.default.alloc(Int);
-        const inputBuf = Buffer.from(input);
-        const ptr = libfhe.encrypt_integer_ex(outLenPtr, pk, pk.length, inputBuf, input.length);
-        if (ptr.isNull())
-            throw new Error("encrypt_integer_ex returned NULL");
-        const outLen = outLenPtr.deref();
-        if (outLen <= 0 || outLen > MAX_NATIVE_OUTPUT_SIZE) {
-            libfhe.free_data(ptr);
-            throw new Error(`Invalid output length from native call: ${outLen}`);
-        }
-        const result = Buffer.from(ptr.reinterpret(outLen, 0));
-        libfhe.free_data(ptr);
-        return new Uint8Array(result);
-    };
-}
 async function loadWasmEncryptor() {
     const Module = require('./native/fhe-api.js');
     return new Promise((resolve, reject) => {
@@ -79,38 +44,15 @@ async function loadWasmEncryptor() {
         }, 5000);
     });
 }
-async function initAlgorithm(mode = "auto") {
-    if (mode === "native") {
-        console.log("[info] trying native backend...");
-        return loadNativeEncryptor();
-    }
-    if (mode === "wasm") {
-        console.log("[info] trying wasm backend...");
-        return await loadWasmEncryptor();
-    }
-    try {
-        console.log("[info] trying native backend first...");
-        return loadNativeEncryptor();
-    }
-    catch (err) {
-        console.log("[warn] trying wasm backend, because native backend failed:", err);
-        return await loadWasmEncryptor();
-    }
-}
 let callAlgorithm = null;
-const init = async (mode = 'auto') => {
-    callAlgorithm = await initAlgorithm(mode);
+const init = async () => {
+    callAlgorithm = await loadWasmEncryptor();
 };
 exports.init = init;
 const getCiphertext = async (pk, input) => {
     if (!callAlgorithm) {
         try {
-            if ((0, platform_1.isUbuntu)()) {
-                await (0, exports.init)();
-            }
-            else {
-                await (0, exports.init)('wasm');
-            }
+            await (0, exports.init)();
         }
         catch (e) {
             console.error('[error] Algorithm initialization failed:', e);
