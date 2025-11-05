@@ -22,4 +22,4 @@ generated
 *.sol-fhe.sol
 *-bak
 
-server_pk.bin
+server_pk*.bin

@@ -1,4 +1,4 @@
-export const privyTokenABI = [
+export const MyOZERC20_ABI = [
     {
       "inputs": [
         {
@@ -23,14 +23,14 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "allowance",
-          "type": "bytes32"
+          "type": "uint256"
         },
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "needed",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "name": "ERC20InsufficientAllowance",
@@ -44,14 +44,14 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "balance",
-          "type": "bytes32"
+          "type": "uint256"
         },
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "needed",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "name": "ERC20InsufficientBalance",
@@ -102,24 +102,6 @@ export const privyTokenABI = [
       "type": "error"
     },
     {
-      "inputs": [],
-      "name": "UnsupportedPayloadType",
-      "type": "error"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "AddedToWhitelist",
-      "type": "event"
-    },
-    {
       "anonymous": false,
       "inputs": [
         {
@@ -136,38 +118,12 @@ export const privyTokenABI = [
         },
         {
           "indexed": false,
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "value",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "name": "Approval",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "OwnershipTransfer",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "RemovedFromWhitelist",
       "type": "event"
     },
     {
@@ -187,26 +143,13 @@ export const privyTokenABI = [
         },
         {
           "indexed": false,
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "value",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "name": "Transfer",
       "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_account",
-          "type": "address"
-        }
-      ],
-      "name": "addToWhitelist",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
     },
     {
       "inputs": [
@@ -224,9 +167,9 @@ export const privyTokenABI = [
       "name": "allowance",
       "outputs": [
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -240,26 +183,9 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "components": [
-            {
-              "internalType": "bytes32",
-              "name": "handle",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "bytes",
-              "name": "data",
-              "type": "bytes"
-            }
-          ],
-          "internalType": "struct uve_uint64",
+          "internalType": "uint256",
           "name": "value",
-          "type": "tuple"
+          "type": "uint256"
         }
       ],
       "name": "approve",
@@ -277,6 +203,29 @@ export const privyTokenABI = [
       "inputs": [
         {
           "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "approveFor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "account",
           "type": "address"
         }
@@ -284,9 +233,9 @@ export const privyTokenABI = [
       "name": "balanceOf",
       "outputs": [
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -295,26 +244,14 @@ export const privyTokenABI = [
     {
       "inputs": [
         {
-          "components": [
-            {
-              "internalType": "bytes32",
-              "name": "handle",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "bytes",
-              "name": "data",
-              "type": "bytes"
-            }
-          ],
-          "internalType": "struct uve_uint64",
-          "name": "value",
-          "type": "tuple"
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
       "name": "burn",
@@ -336,73 +273,16 @@ export const privyTokenABI = [
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "getFullWhitelist",
-      "outputs": [
-        {
-          "internalType": "address[]",
-          "name": "",
-          "type": "address[]"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getTotalHandles",
-      "outputs": [
-        {
-          "internalType": "ve_uint64[]",
-          "name": "",
-          "type": "bytes32[]"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "internalType": "address",
-          "name": "_account",
+          "name": "to",
           "type": "address"
-        }
-      ],
-      "name": "isWhitelisted",
-      "outputs": [
+        },
         {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "components": [
-            {
-              "internalType": "bytes32",
-              "name": "handle",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "bytes",
-              "name": "data",
-              "type": "bytes"
-            }
-          ],
-          "internalType": "struct uve_uint64",
-          "name": "value",
-          "type": "tuple"
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
       "name": "mint",
@@ -425,32 +305,6 @@ export const privyTokenABI = [
     },
     {
       "inputs": [],
-      "name": "owner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_account",
-          "type": "address"
-        }
-      ],
-      "name": "removeFromWhitelist",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "symbol",
       "outputs": [
         {
@@ -467,9 +321,9 @@ export const privyTokenABI = [
       "name": "totalSupply",
       "outputs": [
         {
-          "internalType": "ve_uint64",
+          "internalType": "uint256",
           "name": "",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -483,26 +337,9 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "components": [
-            {
-              "internalType": "bytes32",
-              "name": "handle",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "bytes",
-              "name": "data",
-              "type": "bytes"
-            }
-          ],
-          "internalType": "struct uve_uint64",
+          "internalType": "uint256",
           "name": "value",
-          "type": "tuple"
+          "type": "uint256"
         }
       ],
       "name": "transfer",
@@ -529,26 +366,9 @@ export const privyTokenABI = [
           "type": "address"
         },
         {
-          "components": [
-            {
-              "internalType": "bytes32",
-              "name": "handle",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "bytes",
-              "name": "data",
-              "type": "bytes"
-            }
-          ],
-          "internalType": "struct uve_uint64",
+          "internalType": "uint256",
           "name": "value",
-          "type": "tuple"
+          "type": "uint256"
         }
       ],
       "name": "transferFrom",
@@ -559,19 +379,6 @@ export const privyTokenABI = [
           "type": "bool"
         }
       ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "transferOwnership",
-      "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     }

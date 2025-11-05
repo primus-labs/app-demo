@@ -93,8 +93,8 @@ async function requestPk(pkFile = exports.SERVER_PK_FILE, options) {
 async function requestEncrypt(wallet, aclContractAddress, value, fheType, chainId, attObj, options) {
     let pkFile = exports.MOCK_SERVER_PK_FILE;
     if (!(options && options.isMock)) {
-        await requestPk(exports.SERVER_PK_FILE, options);
-        pkFile = exports.SERVER_PK_FILE;
+        pkFile = (0, utils_1.getServerPkFileName)();
+        await requestPk(pkFile, options);
     }
     const _valueHex = value.toString(16).padStart(64, '0');
     const _valueBytes32 = Buffer.from(_valueHex, 'hex');
@@ -224,7 +224,7 @@ async function _requestDecrypt(wallet, aclContractAddress, fheType, handle, opti
         console.log("handleBytes:", handleBytes);
         console.log("handleBytesHex:", handleBytesHex);
     }
-    const fheTypeHex = fheType.toString(16).padStart(2, '0');
+    const fheTypeHex = handleBytesHex.slice(60, 62);
     const fheTypeBytes1 = Buffer.from(fheTypeHex, 'hex');
     if (verbose > 1) {
         console.log('fheType', fheType);

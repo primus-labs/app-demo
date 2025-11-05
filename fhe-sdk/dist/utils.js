@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.bytesToBigInt = exports.bytesToHex = exports.fromHexString = void 0;
 exports.getACLContract = getACLContract;
 exports.encodeAttestation = encodeAttestation;
+exports.getServerPkFileName = getServerPkFileName;
 exports.fetchJsonRpc = fetchJsonRpc;
 exports.fetchDownloadRpc = fetchDownloadRpc;
 exports.fetchEncryptRpc = fetchEncryptRpc;
@@ -75,6 +76,14 @@ function encodeAttestation(att) {
     return abiCoder.encode([ATTESTATION_TYPE], [tupleValue]);
 }
 const ALPHA_TRION_RPC_URL = process.env.ALPHA_TRION_RPC_URL || "";
+function getServerPkFileName() {
+    if (ALPHA_TRION_RPC_URL === "") {
+        throw new Error(`Missing ALPHA_TRION_RPC_URL in .env`);
+    }
+    const safeName = ALPHA_TRION_RPC_URL.replace(/[^a-zA-Z0-9._-]+/g, "-");
+    const filename = `server_pk-${safeName}.bin`;
+    return filename;
+}
 async function fetchJsonRpc(operation, url, payload, options) {
     const init = {
         method: 'POST',
