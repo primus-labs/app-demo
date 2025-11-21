@@ -60,12 +60,13 @@ The Owner is the top-level authority with the following capabilities:
 - Manages global permissions, including:
   - Adding addresses to the whitelist
   - Removing addresses from the whitelist
+- Transfer ownership to another address, allowing the administrative role to be safely handed over when required.
 
 #### Whitelisted Addresses
 Whitelisted addresses are trusted entities explicitly authorized by the Owner. They have the following permissions:
 - Can decrypt and view the balance of any address and the totalSupply.
 
-Whitelisted roles are typically used for auditors, regulators, or business partners requiring full visibility.
+> Whitelisted roles are typically used for auditors, regulators, or business partners requiring full visibility.
 
 #### User Wallet Addresses
 Regular user wallets have the most limited permissions:
