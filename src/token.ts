@@ -2,6 +2,7 @@ import { ethers as EthersT, Wallet } from "ethers";
 import { PrivyTokenU64V2_1_ABI } from "./abis/PrivyTokenU64V2_1_ABI";
 import { MyOZERC20_ABI } from "./abis/MyOZERC20_ABI";
 import { PUSDCTokenV2_1_ABI } from "./abis/PUSDCTokenV2_1_ABI";
+import { PMUSDTokenV2_1_ABI } from "./abis/PMUSDTokenV2_1_ABI";
 import { requestEncrypt, requestDecrypt, FheType } from "nc97-fhe-sdk";
 import { getACLContract as _getACLContract } from "nc97-fhe-sdk/dist/utils";
 import 'dotenv/config';
@@ -275,6 +276,61 @@ export class PUSDCTokenV2_1 extends PrivyTokenWithWhiteList {
   constructor() {
     const PUSDC_TOKEN_ADDRESS = process.env.PUSDC_TOKEN_ADDRESS || "";
     super(PUSDC_TOKEN_ADDRESS, PUSDCTokenV2_1_ABI);
+  }
+  protected getFheType(): FheType {
+    return FheType.ve_uint256;
+  }
+
+  async mint(owner: string, amount: any): Promise<any> {
+    console.error("not supported");
+  }
+  async burn(owner: string, amount: any): Promise<any> {
+    console.error("not supported");
+  }
+
+  async deposit(amount: string) {
+    const decimals = await this.decimals();
+    const amountHandle = EthersT.parseUnits(amount, decimals);
+    console.log("Deposit amountHandle:", this.formatHandle(amountHandle));
+    const tx = await this.tokenContract.deposit(amountHandle);
+    console.log("Deposit tx:", tx.hash);
+    await tx.wait();
+    console.log("Deposit Confirmed");
+    return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
+  }
+
+  async claim(to: string, amount: string) {
+    const decimals = await this.decimals();
+    const amountHandle = EthersT.parseUnits(amount, decimals);
+    console.log("Claim amountHandle:", this.formatHandle(amountHandle));
+    const tx = await this.tokenContract.claim(to, amountHandle);
+    console.log("Claim tx:", tx.hash);
+    await tx.wait();
+    console.log("Claim Confirmed");
+    return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
+  }
+
+  async addOracle(oracle: string) {
+    const tx = await this.tokenContract.addOracle(oracle);
+    console.log("addOracle tx:", tx.hash);
+    await tx.wait();
+    console.log("addOracle Confirmed");
+    return { oracle: oracle, txHash: tx.hash };
+  }
+
+  async removeOracle(oracle: string) {
+    const tx = await this.tokenContract.removeOracle(oracle);
+    console.log("removeOracle tx:", tx.hash);
+    await tx.wait();
+    console.log("removeOracle Confirmed");
+    return { oracle: oracle, txHash: tx.hash };
+  }
+}
+
+export class PMUSDTokenV2_1 extends PrivyTokenWithWhiteList {
+  constructor() {
+    const PMUSD_TOKEN_ADDRESS = process.env.PMUSD_TOKEN_ADDRESS || "";
+    super(PMUSD_TOKEN_ADDRESS, PMUSDTokenV2_1_ABI);
   }
   protected getFheType(): FheType {
     return FheType.ve_uint256;
