@@ -1,6 +1,6 @@
 // cli/common-erc20-cli.ts
 import { Command } from "commander";
-import type { Erc20Token, EncryptedErc20Token, PrivyTokenWithWhiteList } from "./token";
+import type { Erc20Token, EncryptedErc20Token, PrivyTokenWithWhiteList, PrivyTokenWithWhiteListAndDeposit } from "./token";
 
 export function registerErc20TokenCommands(program: Command, token: Erc20Token) {
   program
@@ -178,5 +178,42 @@ export function registerPrivyTokenWithWhiteListCommands(program: Command, token:
     .action(async (_opts) => {
       const { totalHandles } = await token.getTotalHandles();
       console.log("Full handles:\n", totalHandles);
+    });
+}
+
+export function registerPrivyTokenWithWhiteListAndDepositCommands(program: Command, token: PrivyTokenWithWhiteListAndDeposit) {
+  registerPrivyTokenWithWhiteListCommands(program, token);
+
+  program
+    .command("deposit")
+    .description("Deposit a `amount` amount of tokens from erc20 to contract")
+    .requiredOption("-a, --amount <amount>", "Amount to deposit")
+    .action(async (opts) => {
+      await token.deposit(opts.amount);
+    });
+
+  program
+    .command("claim")
+    .description("Claim a `amount` amount of tokens to `to`")
+    .requiredOption("-t, --to <address>", "Recipient address")
+    .requiredOption("-a, --amount <amount>", "Amount to claim")
+    .action(async (opts) => {
+      await token.claim(opts.to, opts.amount);
+    });
+
+  program
+    .command("addOracle")
+    .description("Add a `oracle` (only onwer)")
+    .requiredOption("-o, --oracle <address>", "Oracle address")
+    .action(async (opts) => {
+      await token.addOracle(opts.oracle);
+    });
+
+  program
+    .command("removeOracle")
+    .description("Remove a `oracle` (only onwer)")
+    .requiredOption("-o, --oracle <address>", "Oracle address")
+    .action(async (opts) => {
+      await token.removeOracle(opts.oracle);
     });
 }
