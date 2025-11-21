@@ -9,6 +9,8 @@ import 'dotenv/config';
 
 
 export class Erc20Token {
+  showHandle: boolean = true;
+
   protected verbose: number = 0;
   protected readonly isMock = process.env.MOCK_TEST === "ON";
 
@@ -99,7 +101,7 @@ export class Erc20Token {
   async mint(owner: string, amount: string) {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
-    console.log("Mint amountHandle:", this.formatHandle(amountHandle));
+    if (this.showHandle) console.log("Mint amountHandle:", this.formatHandle(amountHandle));
     const tx = await this._mint(owner, amountHandle);
     console.log("Mint tx:", tx.hash);
     await tx.wait();
@@ -110,7 +112,7 @@ export class Erc20Token {
   async burn(owner: string, amount: string) {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
-    console.log("Burn amountHandle:", this.formatHandle(amountHandle));
+    if (this.showHandle) console.log("Burn amountHandle:", this.formatHandle(amountHandle));
     const tx = await this._burn(owner, amountHandle);
     console.log("Burn tx:", tx.hash);
     await tx.wait();
@@ -121,7 +123,7 @@ export class Erc20Token {
   async transfer(to: string, amount: string) {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
-    console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
+    if (this.showHandle) console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
     const tx = await this.tokenContract.transfer(to, amountHandle);
     console.log("Transfer tx:", tx.hash);
     await tx.wait();
@@ -132,7 +134,7 @@ export class Erc20Token {
   async approve(spender: string, amount: string) {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
-    console.log("Approve amountHandle:", this.formatHandle(amountHandle));
+    if (this.showHandle) console.log("Approve amountHandle:", this.formatHandle(amountHandle));
     const tx = await this.tokenContract.approve(spender, amountHandle);
     console.log("Approve tx:", tx.hash);
     await tx.wait();
@@ -143,7 +145,7 @@ export class Erc20Token {
   async transferFrom(from: string, to: string, amount: string) {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
-    console.log("TransferFrom amountHandle:", this.formatHandle(amountHandle));
+    if (this.showHandle) console.log("TransferFrom amountHandle:", this.formatHandle(amountHandle));
     const tx = await this.tokenContract.transferFrom(from, to, amountHandle);
     console.log("TransferFrom tx:", tx.hash);
     await tx.wait();
@@ -153,6 +155,7 @@ export class Erc20Token {
 }
 
 export class OZERC20Token extends Erc20Token {
+  showHandle: boolean = false;
   constructor() {
     const OZERC20_TOKEN_ADDRESS = process.env.OZERC20_TOKEN_ADDRESS || "";
     super(OZERC20_TOKEN_ADDRESS, OZERC20_ABI);

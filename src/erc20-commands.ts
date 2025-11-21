@@ -29,7 +29,7 @@ export function registerErc20TokenCommands(program: Command, token: Erc20Token) 
     .description("Returns the value of tokens in existence.")
     .action(async (_opts) => {
       const { totalSupplyHandle, totalSupply, formattedtotalSupply } = await token.totalSupply();
-      console.log(`totalSupply: ${formattedtotalSupply}(${totalSupply}) handle: ${totalSupplyHandle}`);
+      console.log(`totalSupply: ${formattedtotalSupply}(${totalSupply})` + (token.showHandle ? ` handle: ${totalSupplyHandle}` : ""));
     });
 
   program
@@ -39,7 +39,7 @@ export function registerErc20TokenCommands(program: Command, token: Erc20Token) 
     .action(async (opts) => {
       const target = opts.account || (await token.signer?.getAddress());
       const { balanceHandle, balance, formattedBalance } = await token.balanceOf(target);
-      console.log(`Balance of ${target}: ${formattedBalance}(${balance}) handle: ${balanceHandle}`);
+      console.log(`Balance of ${target}: ${formattedBalance}(${balance})` + (token.showHandle ? ` handle: ${balanceHandle}` : ""));
     });
 
   program
@@ -49,7 +49,7 @@ export function registerErc20TokenCommands(program: Command, token: Erc20Token) 
     .requiredOption("-s, --spender <address>", "Spender address")
     .action(async (opts) => {
       const { allowanceHandle, allowance, formattedAllowance } = await token.allowance(opts.owner, opts.spender);
-      console.log(`Allowance: ${formattedAllowance}(${allowance}) handle: ${allowanceHandle}`);
+      console.log(`Allowance: ${formattedAllowance}(${allowance})` + (token.showHandle ? ` handle: ${allowanceHandle}` : ""));
     });
 
   program
@@ -160,8 +160,7 @@ export function registerPrivyTokenWithWhiteListCommands(program: Command, token:
     .requiredOption("-a, --account <address>", "The account address")
     .action(async (opts) => {
       const { isWhitelisted } = await token.isWhitelisted(opts.account);
-      console.log(`Is Whitelisted of ${opts.account}: ${isWhitelisted}`,);
-
+      console.log(`Is Whitelisted of ${opts.account}: ${isWhitelisted}`);
     });
 
   program
