@@ -1,4 +1,4 @@
-export const MyOZERC20_ABI = [
+export const OZERC20_ABI = [
     {
       "inputs": [
         {

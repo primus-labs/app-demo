@@ -1,10 +1,10 @@
 #!/usr/bin/env tsx
 import { registerErc20TokenCommands } from "./erc20-commands";
 import { Command } from "commander";
-import { MyOZERC20Token } from "./token";
+import { OZERC20Token } from "./token";
 
 export function registerOZCLI(program: Command) {
-  const token = new MyOZERC20Token();
+  const token = new OZERC20Token();
   registerErc20TokenCommands(program, token);
 }
 

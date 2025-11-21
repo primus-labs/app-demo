@@ -1,6 +1,6 @@
 import { ethers as EthersT, Wallet } from "ethers";
 import { PrivyTokenU64V2_1_ABI } from "./abis/PrivyTokenU64V2_1_ABI";
-import { MyOZERC20_ABI } from "./abis/MyOZERC20_ABI";
+import { OZERC20_ABI } from "./abis/OZERC20_ABI";
 import { PUSDCTokenV2_1_ABI } from "./abis/PUSDCTokenV2_1_ABI";
 import { PMUSDTokenV2_1_ABI } from "./abis/PMUSDTokenV2_1_ABI";
 import { requestEncrypt, requestDecrypt, FheType } from "@primuslabs/fhe-sdk";
@@ -152,10 +152,10 @@ export class Erc20Token {
   }
 }
 
-export class MyOZERC20Token extends Erc20Token {
+export class OZERC20Token extends Erc20Token {
   constructor() {
     const OZERC20_TOKEN_ADDRESS = process.env.OZERC20_TOKEN_ADDRESS || "";
-    super(OZERC20_TOKEN_ADDRESS, MyOZERC20_ABI);
+    super(OZERC20_TOKEN_ADDRESS, OZERC20_ABI);
   }
 }
 
