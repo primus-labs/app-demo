@@ -20,7 +20,7 @@ export function registerPMUSDCLI(program: Command) {
 
   program
     .command("deposit")
-    .description("Deposit a `amount` amount of tokens from erc20 to eUSDC contract")
+    .description("Deposit a `amount` amount of tokens from erc20 to eMUSD contract")
     .requiredOption("-a, --amount <amount>", "Amount to deposit")
     .action(async (opts) => {
       await token.deposit(opts.amount);
