@@ -2,8 +2,8 @@ import { ethers as EthersT, Wallet } from "ethers";
 import { PrivyTokenU64V2_1_ABI } from "./abis/PrivyTokenU64V2_1_ABI";
 import { MyOZERC20_ABI } from "./abis/MyOZERC20_ABI";
 import { PUSDCTokenV2_1_ABI } from "./abis/PUSDCTokenV2_1_ABI";
-import { requestEncrypt, requestDecrypt, FheType } from "@primuslabs/fhe-sdk/dist";
-import { getACLContract as _getACLContract } from "@primuslabs/fhe-sdk/dist/utils";
+import { requestEncrypt, requestDecrypt, FheType } from "nc97-fhe-sdk";
+import { getACLContract as _getACLContract } from "nc97-fhe-sdk/dist/utils";
 import 'dotenv/config';
 
 

@@ -9,12 +9,11 @@
     "ethers": "^6.15.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
-    "@primuslabs/fhe-sdk": "file:./fhe-sdk"
+    "nc97-fhe-sdk": "^0.1.9"
   },
   "devDependencies": {},
   "scripts": {
-    "build": "tsc --build",
-    "main": "npx ts-node src/main.ts"
+    "build": "tsc --build"
   },
   "keywords": [],
   "author": "",
