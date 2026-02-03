@@ -162,8 +162,29 @@ export class OZERC20Token extends Erc20Token {
   }
 }
 
+class Erc20TokenWithPricing extends Erc20Token {
+  constructor(tokenAddress: string, tokenABI: EthersT.Interface | EthersT.InterfaceAbi) {
+    super(tokenAddress, tokenABI);
+  }
 
-export class EncryptedErc20Token extends Erc20Token {
+  async bindNativeToExecutor(amount: string): Promise<any> {
+    const decimals = 18;
+    const value = EthersT.parseUnits(amount, decimals);
+    const tx = await this.tokenContract.bindNativeToExecutor({ value: value });
+    console.log("BindNativeToExecutor tx:", tx.hash);
+    await tx.wait();
+    console.log("BindNativeToExecutor Confirmed");
+  }
+
+  async balanceOfNative(): Promise<any> {
+    const decimals = 18;
+    const balance = await this.tokenContract.balanceOfNative();
+    const formattedBalance = EthersT.formatUnits(balance, decimals);
+    return { balance, formattedBalance };
+  }
+}
+
+export class EncryptedErc20Token extends Erc20TokenWithPricing {
   private readonly ACL_ADDRESS = process.env.ACL_ADDRESS || "";
   protected aclContract: EthersT.Contract;
 
@@ -216,6 +237,7 @@ export class EncryptedErc20Token extends Erc20Token {
     return await this.decrypt(handle);
   }
 }
+
 
 export class PrivyTokenWithWhiteList extends EncryptedErc20Token {
   async transferOwnership(to: string) {

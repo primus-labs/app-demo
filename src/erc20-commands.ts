@@ -126,6 +126,22 @@ export function registerEncryptedErc20TokenCommands(program: Command, token: Enc
       const value = await token.userDecrypt(opts.handle);
       console.log(`Decrypted of ${opts.handle}:`, value);
     });
+
+  program
+    .command("bindNativeToExecutor")
+    .description("Bind `amount` native token to FHEExecutor.")
+    .requiredOption("-a, --amount <amount>", "Amount to binding")
+    .action(async (opts) => {
+      await token.bindNativeToExecutor(opts.amount);
+    });
+
+  program
+    .command("balanceOfNative")
+    .description("Returns the value of tokens owned by `deployer`.")
+    .action(async (opts) => {
+      const { balance, formattedBalance } = await token.balanceOfNative();
+      console.log(`Balance of native: ${formattedBalance}(${balance})`);
+    });
 }
 
 export function registerPrivyTokenWithWhiteListCommands(program: Command, token: PrivyTokenWithWhiteList) {
