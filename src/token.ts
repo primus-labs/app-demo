@@ -176,6 +176,15 @@ class Erc20TokenWithPricing extends Erc20Token {
     console.log("BindNativeToExecutor Confirmed");
   }
 
+  async releaseNativeFromExecutor(amount: string): Promise<any> {
+    const decimals = 18;
+    const value = EthersT.parseUnits(amount, decimals);
+    const tx = await this.tokenContract.releaseNativeFromExecutor(value);
+    console.log("releaseNativeFromExecutor tx:", tx.hash);
+    await tx.wait();
+    console.log("releaseNativeFromExecutor Confirmed");
+  }
+
   async balanceOfNative(): Promise<any> {
     const decimals = 18;
     const balance = await this.tokenContract.balanceOfNative();

@@ -134,6 +134,14 @@ export function registerEncryptedErc20TokenCommands(program: Command, token: Enc
     .action(async (opts) => {
       await token.bindNativeToExecutor(opts.amount);
     });
+    
+  program
+    .command("releaseNativeFromExecutor")
+    .description("Release `amount` native token from FHEExecutor.")
+    .requiredOption("-a, --amount <amount>", "Amount to binding")
+    .action(async (opts) => {
+      await token.releaseNativeFromExecutor(opts.amount);
+    });
 
   program
     .command("balanceOfNative")

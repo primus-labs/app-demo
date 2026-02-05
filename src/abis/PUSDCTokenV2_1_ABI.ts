@@ -619,7 +619,7 @@ export const PUSDCTokenV2_1_ABI = [
           "type": "uint256"
         }
       ],
-      "name": "releaseNativeFromExecutorToThis",
+      "name": "releaseNativeFromExecutor",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
