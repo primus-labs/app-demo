@@ -129,7 +129,7 @@ export function registerEncryptedErc20TokenCommands(program: Command, token: Enc
 
   program
     .command("bindNativeToExecutor")
-    .description("Bind `amount` native token to FHEExecutor.")
+    .description("Bind `amount` native token to FHEExecutor (only owner).")
     .requiredOption("-a, --amount <amount>", "Amount to binding")
     .action(async (opts) => {
       await token.bindNativeToExecutor(opts.amount);
@@ -137,15 +137,15 @@ export function registerEncryptedErc20TokenCommands(program: Command, token: Enc
     
   program
     .command("releaseNativeFromExecutor")
-    .description("Release `amount` native token from FHEExecutor.")
-    .requiredOption("-a, --amount <amount>", "Amount to binding")
+    .description("Release `amount` native token from FHEExecutor (only owner).")
+    .requiredOption("-a, --amount <amount>", "Amount to releasing")
     .action(async (opts) => {
       await token.releaseNativeFromExecutor(opts.amount);
     });
 
   program
     .command("balanceOfNative")
-    .description("Returns the value of tokens owned by `deployer`.")
+    .description("Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).")
     .action(async (opts) => {
       const { balance, formattedBalance } = await token.balanceOfNative();
       console.log(`Balance of native: ${formattedBalance}(${balance})`);
@@ -226,7 +226,7 @@ export function registerPrivyTokenWithWhiteListAndDepositCommands(program: Comma
 
   program
     .command("addOracle")
-    .description("Add a `oracle` (only onwer)")
+    .description("Add a `oracle` (only onwer).")
     .requiredOption("-o, --oracle <address>", "Oracle address")
     .action(async (opts) => {
       await token.addOracle(opts.oracle);
@@ -234,7 +234,7 @@ export function registerPrivyTokenWithWhiteListAndDepositCommands(program: Comma
 
   program
     .command("removeOracle")
-    .description("Remove a `oracle` (only onwer)")
+    .description("Remove a `oracle` (only onwer).")
     .requiredOption("-o, --oracle <address>", "Oracle address")
     .action(async (opts) => {
       await token.removeOracle(opts.oracle);

@@ -9,6 +9,12 @@
     - [User Wallet Addresses](#user-wallet-addresses)
 - [Configuration](#configuration)
 - [Commandline tool](#commandline-tool)
+  - [Fist-of-All](#fist-of-all)
+    - [addOracle](#addoracle)
+    - [removeOracle](#removeoracle)
+    - [bindNativeToExecutor](#bindnativetoexecutor)
+    - [releaseNativeFromExecutor](#releasenativefromexecutor)
+    - [balanceOfNative](#balanceofnative)
   - [ERC20](#erc20)
     - [name](#name)
     - [symbol](#symbol)
@@ -37,9 +43,9 @@
 
 **Addresses:**
 
-| Contract                  | Address                                    | Chain(ID)                       |
-| ------------------------- | ------------------------------------------ | ------------------------------- |
-| Encrypted MASS USD(eMUSD) | 0x106af0d6FF93924468c7742aE63278F1ad82a7CD | Sepolia Chain (11155111)        |
+| Contract                  | Address                                    | Chain(ID)                |
+| ------------------------- | ------------------------------------------ | ------------------------ |
+| Encrypted MASS USD(eMUSD) | 0x106af0d6FF93924468c7742aE63278F1ad82a7CD | Sepolia Chain (11155111) |
 
 
 <br/>
@@ -116,37 +122,93 @@ npx tsx src/pmusd-cli.ts help
 ```
 
 ```log
-Usage: [command] [options]
+Usage: pmusd-cli [options] [command]
 
 Options:
-  -V, --version           output the version number
-  -h, --help              display help for command
+  -h, --help                           display help for command
 
 Commands:
-  name                           Returns the name of the token.
-  symbol                         Returns the symbol of the token, a shorter version of the name.
-  decimals                       Returns the number of decimals used to get its user representation.
-  totalSupply                    Returns the value of tokens in existence.
-  balanceOf [options]            Returns the value of tokens owned by `account`.
-  allowance [options]            Returns the remaining number of tokens that `spender` will be allowed to spend on behalf
-                                 of `owner` through {transferFrom}.
-  deposit [options]              Deposit a `amount` amount of tokens from erc20 to eMUSD contract.
-  claim [options]                Claim a `amount` amount of tokens to `to`.
-  transfer [options]             Moves a value `amount` of tokens from the caller's account to `to`.
-  approve [options]              Sets a value `amount` of tokens as the allowance of `spender` over the caller's tokens.
-  transferFrom [options]         Moves a value `amount` of tokens from `from` to `to` using the allowance mechanism.
-                                 `value` is then deducted from the caller's allowance.
-  transferOwnership [options]    Transfers the contract ownership to `to`.
-  addToWhitelist [options]       Adds an `account` to the whitelist.
-  removeFromWhitelist [options]  Removes an `account` from the whitelist.
-  isWhitelisted [options]        Determines whether the `account` is on the whitelist.
-  getFullWhitelist               Retrieves the whitelist.
-  getTotalHandles                Retrieves all handles for contract status variables, including historical values.
-  allowForDecryption [options]   Grants decryption permission for the `handle` to the specified `account`. If no
-                                 `account` is provided, the `handle` will be decryptable by anyone.
-  userDecrypt [options]          Retrieves the plaintext corresponding to the `handle`.
-  help [command]                 display help for command
+  name                                 Returns the name of the token.
+  symbol                               Returns the symbol of the token, a shorter version of the name.
+  decimals                             Returns the number of decimals used to get its user representation.
+  totalSupply                          Returns the value of tokens in existence.
+  balanceOf [options]                  Returns the value of tokens owned by `account`.
+  allowance [options]                  Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through
+                                       {transferFrom}.
+  transfer [options]                   Moves a value `amount` of tokens from the caller's account to `to`.
+  approve [options]                    Sets a value `amount` of tokens as the allowance of `spender` over the caller's tokens.
+  transferFrom [options]               Moves a value `amount` of tokens from `from` to `to` using the allowance mechanism. `value` is then deducted from
+                                       the caller's allowance.
+  allowForDecryption [options]         Grants decryption permission for the `handle` to the specified `account`. If no `account` is provided, the `handle`
+                                       will be decryptable by anyone.
+  userDecrypt [options]                Retrieves the plaintext corresponding to the `handle`.
+  bindNativeToExecutor [options]       Bind `amount` native token to FHEExecutor (only owner).
+  releaseNativeFromExecutor [options]  Release `amount` native token from FHEExecutor (only owner).
+  balanceOfNative                      Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).
+  transferOwnership [options]          Transfers the contract ownership to `to`.
+  addToWhitelist [options]             Adds an `account` to the whitelist.
+  removeFromWhitelist [options]        Removes an `account` from the whitelist.
+  isWhitelisted [options]              Determines whether the `account` is on the whitelist.
+  getFullWhitelist                     Retrieves the whitelist.
+  getTotalHandles                      Retrieves all handles for contract status variables, including historical values.
+  deposit [options]                    Deposit a `amount` amount of tokens from erc20 to contract
+  claim [options]                      Claim a `amount` amount of tokens to `to`
+  addOracle [options]                  Add a `oracle` (only onwer).
+  removeOracle [options]               Remove a `oracle` (only onwer).
+  help [command]                       display help for command
 ```
+
+### Fist-of-All
+
+**Prerequisite**: If you are the contract deployer, you must run `addOracle` and `bindNativeToExecutor` before (others) executing any other CLI commands.
+
+#### addOracle
+
+```sh
+npx tsx src/pmusd-cli.ts addOracle --oracle <address>
+# Options:
+#   -o, --oracle <address>  Oracle address
+```
+
+Add a `oracle` (only onwer).
+
+#### removeOracle
+
+```sh
+npx tsx src/pmusd-cli.ts removeOracle --oracle <address>
+# Options:
+#   -o, --oracle <address>  Oracle address
+```
+
+Remove a `oracle` (only onwer).
+
+#### bindNativeToExecutor
+
+```sh
+npx tsx src/pmusd-cli.ts bindNativeToExecutor --amount <amount>
+# Options:
+#   -a, --amount <amount>  Amount to binding
+```
+
+Bind `amount` native token to FHEExecutor (only owner).
+
+#### releaseNativeFromExecutor
+
+```sh
+npx tsx src/pmusd-cli.ts releaseNativeFromExecutor --amount <amount>
+# Options:
+#   -a, --amount <amount>  Amount to releasing
+```
+
+Release `amount` native token from FHEExecutor (only owner).
+
+#### balanceOfNative
+
+```sh
+npx tsx src/pmusd-cli.ts balanceOfNative
+```
+Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).
+
 
 ### ERC20
 

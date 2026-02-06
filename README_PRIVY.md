@@ -3,6 +3,10 @@
 - [Overview](#overview)
 - [Configuration](#configuration)
 - [Commandline tool](#commandline-tool)
+  - [Fist-of-All](#fist-of-all)
+    - [bindNativeToExecutor](#bindnativetoexecutor)
+    - [releaseNativeFromExecutor](#releasenativefromexecutor)
+    - [balanceOfNative](#balanceofnative)
   - [ERC20](#erc20)
     - [name](#name)
     - [symbol](#symbol)
@@ -80,39 +84,72 @@ npx tsx src/privy-cli.ts help
 ```
 
 ```log
-Usage: [command] [options]
+Usage: privy-cli [options] [command]
 
 Options:
-  -V, --version           output the version number
-  -h, --help              display help for command
+  -h, --help                           display help for command
 
 Commands:
-  name                           Returns the name of the token.
-  symbol                         Returns the symbol of the token, a shorter version of the name.
-  decimals                       Returns the number of decimals used to get its user representation.
-  totalSupply                    Returns the value of tokens in existence.
-  balanceOf [options]            Returns the value of tokens owned by `account`.
-  allowance [options]            Returns the remaining number of tokens that `spender` will be allowed to spend on behalf
-                                 of `owner` through {transferFrom}.
-  mint [options]                 Creates a value `amount` of tokens and assigns them to msg.sender, by transferring it
-                                 from address(0).
-  burn [options]                 Destroys a value `amount` of tokens from msg.sender, lowering the balance of msg.sender
-                                 and the total supply.
-  transfer [options]             Moves a value `amount` of tokens from the caller's account to `to`.
-  approve [options]              Sets a value `amount` of tokens as the allowance of `spender` over the caller's tokens.
-  transferFrom [options]         Moves a value `amount` of tokens from `from` to `to` using the allowance mechanism.
-                                 `value` is then deducted from the caller's allowance.
-  transferOwnership [options]    Transfers the contract ownership to `to`.
-  addToWhitelist [options]       Adds an `account` to the whitelist.
-  removeFromWhitelist [options]  Removes an `account` from the whitelist.
-  isWhitelisted [options]        Determines whether the `account` is on the whitelist.
-  getFullWhitelist               Retrieves the whitelist.
-  getTotalHandles                Retrieves all handles for contract status variables, including historical values.
-  allowForDecryption [options]   Grants decryption permission for the `handle` to the specified `account`. If no
-                                 `account` is provided, the `handle` will be decryptable by anyone.
-  userDecrypt [options]          Retrieves the plaintext corresponding to the `handle`.
-  help [command]                 display help for command
+  name                                 Returns the name of the token.
+  symbol                               Returns the symbol of the token, a shorter version of the name.
+  decimals                             Returns the number of decimals used to get its user representation.
+  totalSupply                          Returns the value of tokens in existence.
+  balanceOf [options]                  Returns the value of tokens owned by `account`.
+  allowance [options]                  Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through
+                                       {transferFrom}.
+  mint [options]                       Creates a value `amount` of tokens and assigns them to msg.sender, by transferring it from address(0).
+  burn [options]                       Destroys a value `amount` of tokens from msg.sender, lowering the balance of msg.sender and the total supply.
+  transfer [options]                   Moves a value `amount` of tokens from the caller's account to `to`.
+  approve [options]                    Sets a value `amount` of tokens as the allowance of `spender` over the caller's tokens.
+  transferFrom [options]               Moves a value `amount` of tokens from `from` to `to` using the allowance mechanism. `value` is then deducted from
+                                       the caller's allowance.
+  allowForDecryption [options]         Grants decryption permission for the `handle` to the specified `account`. If no `account` is provided, the `handle`
+                                       will be decryptable by anyone.
+  userDecrypt [options]                Retrieves the plaintext corresponding to the `handle`.
+  bindNativeToExecutor [options]       Bind `amount` native token to FHEExecutor (only owner).
+  releaseNativeFromExecutor [options]  Release `amount` native token from FHEExecutor (only owner).
+  balanceOfNative                      Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).
+  transferOwnership [options]          Transfers the contract ownership to `to`.
+  addToWhitelist [options]             Adds an `account` to the whitelist.
+  removeFromWhitelist [options]        Removes an `account` from the whitelist.
+  isWhitelisted [options]              Determines whether the `account` is on the whitelist.
+  getFullWhitelist                     Retrieves the whitelist.
+  getTotalHandles                      Retrieves all handles for contract status variables, including historical values.
+  help [command]                       display help for command
 ```
+
+### Fist-of-All
+
+**Prerequisite**: If you are the contract deployer, you must run `bindNativeToExecutor` before (others) executing any other CLI commands.
+
+#### bindNativeToExecutor
+
+```sh
+npx tsx src/privy-cli.ts bindNativeToExecutor --amount <amount>
+# Options:
+#   -a, --amount <amount>  Amount to binding
+```
+
+Bind `amount` native token to FHEExecutor (only owner).
+
+#### releaseNativeFromExecutor
+
+```sh
+npx tsx src/privy-cli.ts releaseNativeFromExecutor --amount <amount>
+# Options:
+#   -a, --amount <amount>  Amount to releasing
+```
+
+Release `amount` native token from FHEExecutor (only owner).
+
+#### balanceOfNative
+
+```sh
+npx tsx src/privy-cli.ts balanceOfNative
+```
+Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).
+
+
 
 ### ERC20
 
