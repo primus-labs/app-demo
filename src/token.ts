@@ -218,7 +218,7 @@ export class EncryptedErc20Token extends Erc20TokenWithPricing {
     );
   }
 
-  protected async decrypt(handle: string, timeout: number = 30000): Promise<any> {
+  protected async decrypt(handle: string, timeout: number = 60000): Promise<any> {
     return await requestDecrypt(
       this.signer as Wallet,
       this.ACL_ADDRESS,
