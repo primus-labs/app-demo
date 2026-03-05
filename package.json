@@ -1,6 +1,6 @@
 {
   "name": "demo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A demo",
   "dependencies": {
     "@primuslabs/fhe-sdk": "npm:nc97-fhe-sdk@^0.1.15",
