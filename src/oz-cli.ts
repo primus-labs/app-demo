@@ -11,5 +11,8 @@ export function registerOZCLI(program: Command) {
 if (require.main === module) {
   const program = new Command();
   registerOZCLI(program);
-  program.parseAsync();
+  program.parseAsync().catch(err => {
+    console.error("CLI error:", err);
+    process.exit(1);
+  });
 }

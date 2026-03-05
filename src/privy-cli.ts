@@ -11,5 +11,8 @@ export function registerPrivyU64CLI(program: Command) {
 if (require.main === module) {
   const program = new Command();
   registerPrivyU64CLI(program);
-  program.parseAsync();
+  program.parseAsync().catch(err => {
+    console.error("CLI error:", err);
+    process.exit(1);
+  });
 }

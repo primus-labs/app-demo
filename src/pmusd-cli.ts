@@ -15,5 +15,8 @@ export function registerPMUSDCLI(program: Command) {
 if (require.main === module) {
   const program = new Command();
   registerPMUSDCLI(program);
-  program.parseAsync();
+  program.parseAsync().catch(err => {
+    console.error("CLI error:", err);
+    process.exit(1);
+  });
 }
