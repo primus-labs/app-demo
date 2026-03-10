@@ -1,8 +1,18 @@
 // cli/common-erc20-cli.ts
 import { Command } from "commander";
 import type { Erc20Token, EncryptedErc20Token, PrivyTokenWithWhiteList, PrivyTokenWithWhiteListAndDeposit } from "./token";
+import { ethers as EthersT } from "ethers";
 
 export function registerErc20TokenCommands(program: Command, token: Erc20Token) {
+  program.option("--feeValue <value>", "fee value", "0");
+  program.option("--feeDecimals <number>", "fee decimals", "18");
+  program.hook("preAction", (cmd) => {
+    const opts = cmd.opts();
+    const feeValue = opts.feeValue ?? "0";
+    const feeDecimals = Number(opts.feeDecimals ?? 18);
+    token.feeValue = EthersT.parseUnits(feeValue, feeDecimals);
+  });
+
   program
     .command("name")
     .description("Returns the name of the token.")
@@ -125,30 +135,6 @@ export function registerEncryptedErc20TokenCommands(program: Command, token: Enc
     .action(async (opts) => {
       const value = await token.userDecrypt(opts.handle);
       console.log(`Decrypted of ${opts.handle}:`, value);
-    });
-
-  program
-    .command("bindNativeToExecutor")
-    .description("Bind `amount` native token to FHEExecutor (only owner).")
-    .requiredOption("-a, --amount <amount>", "Amount to binding")
-    .action(async (opts) => {
-      await token.bindNativeToExecutor(opts.amount);
-    });
-    
-  program
-    .command("releaseNativeFromExecutor")
-    .description("Release `amount` native token from FHEExecutor (only owner).")
-    .requiredOption("-a, --amount <amount>", "Amount to releasing")
-    .action(async (opts) => {
-      await token.releaseNativeFromExecutor(opts.amount);
-    });
-
-  program
-    .command("balanceOfNative")
-    .description("Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).")
-    .action(async (opts) => {
-      const { balance, formattedBalance } = await token.balanceOfNative();
-      console.log(`Balance of native: ${formattedBalance}(${balance})`);
     });
 }
 

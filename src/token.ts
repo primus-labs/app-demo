@@ -10,6 +10,7 @@ import 'dotenv/config';
 
 export class Erc20Token {
   showHandle: boolean = true;
+  feeValue: bigint = 0n;
 
   protected verbose: number = 0;
   protected readonly isMock = process.env.MOCK_TEST === "ON";
@@ -30,6 +31,10 @@ export class Erc20Token {
     this.signer = PRIVATE_KEY ? new EthersT.Wallet(PRIVATE_KEY, this.provider) : null;
     this.tokenContract = new EthersT.Contract(tokenAddress, tokenABI, this.signer ?? this.provider);
     this.tokenAddress = tokenAddress;
+  }
+
+  txOptions() {
+    return this.feeValue > 0n ? { value: this.feeValue } : {};
   }
 
   async getChainID(): Promise<number> {
@@ -93,10 +98,10 @@ export class Erc20Token {
 
   // ========== State-changing APIs ==========
   protected async _mint(owner: string, amount: any): Promise<any> {
-    return await this.tokenContract.mint(owner, amount);
+    return await this.tokenContract.mint(owner, amount, this.txOptions());
   }
   protected async _burn(owner: string, amount: any): Promise<any> {
-    return await this.tokenContract.burn(owner, amount);
+    return await this.tokenContract.burn(owner, amount, this.txOptions());
   }
   async mint(owner: string, amount: string) {
     const decimals = await this.decimals();
@@ -124,7 +129,7 @@ export class Erc20Token {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.transfer(to, amountHandle);
+    const tx = await this.tokenContract.transfer(to, amountHandle, this.txOptions());
     console.log("Transfer tx:", tx.hash);
     await tx.wait();
     console.log("Transfer Confirmed");
@@ -135,7 +140,7 @@ export class Erc20Token {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("Approve amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.approve(spender, amountHandle);
+    const tx = await this.tokenContract.approve(spender, amountHandle, this.txOptions());
     console.log("Approve tx:", tx.hash);
     await tx.wait();
     console.log("Approve Confirmed");
@@ -146,7 +151,7 @@ export class Erc20Token {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("TransferFrom amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.transferFrom(from, to, amountHandle);
+    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, this.txOptions());
     console.log("TransferFrom tx:", tx.hash);
     await tx.wait();
     console.log("TransferFrom Confirmed");
@@ -162,38 +167,7 @@ export class OZERC20Token extends Erc20Token {
   }
 }
 
-class Erc20TokenWithPricing extends Erc20Token {
-  constructor(tokenAddress: string, tokenABI: EthersT.Interface | EthersT.InterfaceAbi) {
-    super(tokenAddress, tokenABI);
-  }
-
-  async bindNativeToExecutor(amount: string): Promise<any> {
-    const decimals = 18;
-    const value = EthersT.parseUnits(amount, decimals);
-    const tx = await this.tokenContract.bindNativeToExecutor({ value: value });
-    console.log("BindNativeToExecutor tx:", tx.hash);
-    await tx.wait();
-    console.log("BindNativeToExecutor Confirmed");
-  }
-
-  async releaseNativeFromExecutor(amount: string): Promise<any> {
-    const decimals = 18;
-    const value = EthersT.parseUnits(amount, decimals);
-    const tx = await this.tokenContract.releaseNativeFromExecutor(value);
-    console.log("releaseNativeFromExecutor tx:", tx.hash);
-    await tx.wait();
-    console.log("releaseNativeFromExecutor Confirmed");
-  }
-
-  async balanceOfNative(): Promise<any> {
-    const decimals = 18;
-    const balance = await this.tokenContract.balanceOfNative();
-    const formattedBalance = EthersT.formatUnits(balance, decimals);
-    return { balance, formattedBalance };
-  }
-}
-
-export class EncryptedErc20Token extends Erc20TokenWithPricing {
+export class EncryptedErc20Token extends Erc20Token {
   private readonly ACL_ADDRESS = process.env.ACL_ADDRESS || "";
   protected aclContract: EthersT.Contract;
 
@@ -299,10 +273,10 @@ export class PrivyTokenU64V2_1 extends PrivyTokenWithWhiteList {
     return FheType.ve_uint64;
   }
   protected async _mint(_: string, amount: any): Promise<any> {
-    return await this.tokenContract.mint(amount);
+    return await this.tokenContract.mint(amount, this.txOptions());
   }
   protected async _burn(_: string, amount: any): Promise<any> {
-    return await this.tokenContract.burn(amount);
+    return await this.tokenContract.burn(amount, this.txOptions());
   }
 }
 
@@ -322,7 +296,7 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const decimals = await this.decimals();
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Deposit amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.deposit(amountHandle);
+    const tx = await this.tokenContract.deposit(amountHandle, this.txOptions());
     console.log("Deposit tx:", tx.hash);
     await tx.wait();
     console.log("Deposit Confirmed");
@@ -333,7 +307,7 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const decimals = await this.decimals();
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Claim amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.claim(to, amountHandle);
+    const tx = await this.tokenContract.claim(to, amountHandle, this.txOptions());
     console.log("Claim tx:", tx.hash);
     await tx.wait();
     console.log("Claim Confirmed");
@@ -343,7 +317,7 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
   async addOracle(oracle: string) {
     const tx = await this.tokenContract.addOracle(oracle);
     console.log("addOracle tx:", tx.hash);
-    await tx.wait();
+    await tx.wait(); 
     console.log("addOracle Confirmed");
     return { oracle: oracle, txHash: tx.hash };
   }

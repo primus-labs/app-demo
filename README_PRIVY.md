@@ -3,10 +3,6 @@
 - [Overview](#overview)
 - [Configuration](#configuration)
 - [Commandline tool](#commandline-tool)
-  - [Fist-of-All](#fist-of-all)
-    - [bindNativeToExecutor](#bindnativetoexecutor)
-    - [releaseNativeFromExecutor](#releasenativefromexecutor)
-    - [balanceOfNative](#balanceofnative)
   - [ERC20](#erc20)
     - [name](#name)
     - [symbol](#symbol)
@@ -87,6 +83,8 @@ npx tsx src/privy-cli.ts help
 Usage: privy-cli [options] [command]
 
 Options:
+  --feeValue <value>                   fee value (default: "0")
+  --feeDecimals <number>               fee decimals (default: "18")
   -h, --help                           display help for command
 
 Commands:
@@ -106,9 +104,6 @@ Commands:
   allowForDecryption [options]         Grants decryption permission for the `handle` to the specified `account`. If no `account` is provided, the `handle`
                                        will be decryptable by anyone.
   userDecrypt [options]                Retrieves the plaintext corresponding to the `handle`.
-  bindNativeToExecutor [options]       Bind `amount` native token to FHEExecutor (only owner).
-  releaseNativeFromExecutor [options]  Release `amount` native token from FHEExecutor (only owner).
-  balanceOfNative                      Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).
   transferOwnership [options]          Transfers the contract ownership to `to`.
   addToWhitelist [options]             Adds an `account` to the whitelist.
   removeFromWhitelist [options]        Removes an `account` from the whitelist.
@@ -117,39 +112,6 @@ Commands:
   getTotalHandles                      Retrieves all handles for contract status variables, including historical values.
   help [command]                       display help for command
 ```
-
-### Fist-of-All
-
-**Prerequisite**: If you are the contract deployer, you must run `bindNativeToExecutor` before (others) executing any other CLI commands.
-
-#### bindNativeToExecutor
-
-```sh
-npx tsx src/privy-cli.ts bindNativeToExecutor --amount <amount>
-# Options:
-#   -a, --amount <amount>  Amount to binding
-```
-
-Bind `amount` native token to FHEExecutor (only owner).
-
-#### releaseNativeFromExecutor
-
-```sh
-npx tsx src/privy-cli.ts releaseNativeFromExecutor --amount <amount>
-# Options:
-#   -a, --amount <amount>  Amount to releasing
-```
-
-Release `amount` native token from FHEExecutor (only owner).
-
-#### balanceOfNative
-
-```sh
-npx tsx src/privy-cli.ts balanceOfNative
-```
-Returns the value of tokens owned by `deployer` of FHEExecutor (only owner).
-
-
 
 ### ERC20
 
