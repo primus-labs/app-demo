@@ -8,7 +8,7 @@
  *   3. The current account is whitelisted, or has owner privileges
  *
  * Usage:
- *   npx tsx test-pusdc.ts
+ *   npx tsx test/pusdc.test.ts
  *
  * Optional environment variables:
  *   TEST_RECIPIENT=0x...   Transfer recipient address (defaults to self)
@@ -54,15 +54,21 @@ let passed = 0, failed = 0, skipped = 0;
 const onlyIndex = process.argv.indexOf("--only");
 const onlyFilter = onlyIndex !== -1 ? process.argv[onlyIndex + 1]?.toLowerCase() : null;
 
-async function test(label: string, fn: () => Promise<void>, opts?: { skip?: boolean }) {
+// fn() may return a result string to append to the label (e.g. actual value)
+async function test(label: string, fn: () => Promise<string | void>, opts?: { skip?: boolean }) {
   if (onlyFilter && !label.toLowerCase().includes(onlyFilter)) { skip(label); skipped++; return; }
   if (opts?.skip) { skip(label); skipped++; return; }
+  // Print a pending indicator first so detail logs from fn() appear beneath it
+  process.stdout.write(`  ${C.yellow}…${C.reset} ${label}\n`);
   try {
-    await fn();
-    pass(label);
+    const result = await fn();
+    // Overwrite pending line with pass indicator, appending the actual result if provided
+    const finalLabel = result ? `${label} → ${C.bold}${result}${C.reset}` : label;
+    process.stdout.write(`\x1b[1A\r  ${C.green}✓${C.reset} ${finalLabel}\n`);
     passed++;
   } catch (e: any) {
-    fail(label, e);
+    process.stdout.write(`\x1b[1A\r  ${C.red}✗${C.reset} ${label}\n`);
+    if (e) console.log(`    ${C.red}→ ${e?.message ?? e}${C.reset}`);
     failed++;
   }
 }
@@ -120,111 +126,116 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
 
   let tokenName = "";
-  await test("name() returns a non-empty string", async () => {
+  await test("name()", async () => {
     tokenName = await token.name();
     assert(typeof tokenName === "string" && tokenName.length > 0, `name=${tokenName}`);
-    console.log(`    → ${tokenName}`);
+    return tokenName;
   });
 
   let tokenSymbol = "";
-  await test("symbol() returns a non-empty string", async () => {
+  await test("symbol()", async () => {
     tokenSymbol = await token.symbol();
     assert(typeof tokenSymbol === "string" && tokenSymbol.length > 0, `symbol=${tokenSymbol}`);
-    console.log(`    → ${tokenSymbol}`);
+    return tokenSymbol;
   });
 
   let tokenDecimals = 0;
-  await test("decimals() returns a positive integer", async () => {
+  await test("decimals()", async () => {
     tokenDecimals = await token.decimals();
     assert(Number(tokenDecimals) > 0, `decimals=${tokenDecimals}`);
-    console.log(`    → ${tokenDecimals}`);
+    return String(tokenDecimals);
   });
 
-  await test("totalSupply() decrypts and returns a non-negative value", async () => {
+  await test("totalSupply()", async () => {
     const { formattedtotalSupply, totalSupplyHandle } = await token.totalSupply();
     assert(totalSupplyHandle !== undefined, "handle is undefined");
     assert(parseFloat(formattedtotalSupply) >= 0, `invalid totalSupply=${formattedtotalSupply}`);
-    console.log(`    → totalSupply=${formattedtotalSupply} ${tokenSymbol}`);
+    return `${formattedtotalSupply} ${tokenSymbol}`;
   });
 
   // ──────────────────────────────────────────────────────────────────────────
   section("2. Whitelist Operations");
   // ──────────────────────────────────────────────────────────────────────────
 
-  // Record whether self was already whitelisted before the test, so we can
-  // restore the original state at the end of this section.
-  let wasWhitelisted = false;
-  await test("isWhitelisted(self) returns a boolean (record initial state)", async () => {
-    const { isWhitelisted } = await token.isWhitelisted(SELF_ADDRESS);
-    assert(typeof isWhitelisted === "boolean", `isWhitelisted=${isWhitelisted}`);
-    wasWhitelisted = isWhitelisted;
-    console.log(`    → initial isWhitelisted=${isWhitelisted}`);
-  });
-
-  await test("getFullWhitelist() returns an array", async () => {
+  await test("getFullWhitelist()", async () => {
     const { fullWhitelist } = await token.getFullWhitelist();
     assert(Array.isArray(fullWhitelist), "fullWhitelist is not an array");
-    console.log(`    → ${fullWhitelist.length} address(es)`);
+    return `${fullWhitelist.length} address(es)`;
   });
 
-  await test("getTotalHandles() returns data", async () => {
+  await test("getTotalHandles()", async () => {
     const { totalHandles } = await token.getTotalHandles();
     assert(totalHandles !== undefined, "totalHandles is undefined");
-    console.log(`    → ${JSON.stringify(totalHandles).slice(0, 80)}...`);
+    return JSON.stringify(totalHandles).slice(0, 60);
   });
 
-  await test("addToWhitelist(self) → isWhitelisted returns true", async () => {
-    // If already whitelisted, skip adding to avoid a redundant tx
-    if (!wasWhitelisted) {
-      const { txHash } = await token.addToWhitelist(SELF_ADDRESS);
-      assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
-      console.log(`    → addToWhitelist tx: ${txHash}`);
-    } else {
-      console.log(`    → self was already whitelisted, skipping addToWhitelist`);
+  await test("addToWhitelist(self)", async () => {
+    // Prerequisite: ensure self is NOT in whitelist before adding
+    const { isWhitelisted: before } = await token.isWhitelisted(SELF_ADDRESS);
+    if (before) {
+      await token.removeFromWhitelist(SELF_ADDRESS);
+      console.log(`    → pre-condition: removed self from whitelist`);
     }
+
+    const { txHash } = await token.addToWhitelist(SELF_ADDRESS);
+    assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
+    console.log(`    → tx: ${txHash}`);
+
+    // Verify isWhitelisted returns true
     const { isWhitelisted } = await token.isWhitelisted(SELF_ADDRESS);
     assert(isWhitelisted === true, `expected true, got ${isWhitelisted}`);
-    console.log(`    → isWhitelisted=${isWhitelisted} ✓`);
 
-    // Also verify self appears in the full whitelist
+    // Verify self appears in getFullWhitelist
     const { fullWhitelist } = await token.getFullWhitelist();
     assert(
       fullWhitelist.map((a: string) => a.toLowerCase()).includes(SELF_ADDRESS.toLowerCase()),
       "self not found in fullWhitelist after addToWhitelist"
     );
-    console.log(`    → self found in fullWhitelist ✓`);
+
+    // Cleanup: remove self to restore clean state
+    await token.removeFromWhitelist(SELF_ADDRESS);
+    console.log(`    → cleanup: removed self from whitelist`);
+
+    return `isWhitelisted=true, found in fullWhitelist ✓`;
   });
 
-  await test("removeFromWhitelist(self) → isWhitelisted returns false", async () => {
+  await test("removeFromWhitelist(self)", async () => {
+    // Prerequisite: ensure self IS in whitelist before removing
+    const { isWhitelisted: before } = await token.isWhitelisted(SELF_ADDRESS);
+    if (!before) {
+      await token.addToWhitelist(SELF_ADDRESS);
+      console.log(`    → pre-condition: added self to whitelist`);
+    }
+
     const { txHash } = await token.removeFromWhitelist(SELF_ADDRESS);
     assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
-    console.log(`    → removeFromWhitelist tx: ${txHash}`);
+    console.log(`    → tx: ${txHash}`);
 
+    // Verify isWhitelisted returns false
     const { isWhitelisted } = await token.isWhitelisted(SELF_ADDRESS);
     assert(isWhitelisted === false, `expected false, got ${isWhitelisted}`);
-    console.log(`    → isWhitelisted=${isWhitelisted} ✓`);
 
-    // Also verify self no longer appears in the full whitelist
+    // Verify self is absent from getFullWhitelist
     const { fullWhitelist } = await token.getFullWhitelist();
     assert(
       !fullWhitelist.map((a: string) => a.toLowerCase()).includes(SELF_ADDRESS.toLowerCase()),
       "self still found in fullWhitelist after removeFromWhitelist"
     );
-    console.log(`    → self not found in fullWhitelist ✓`);
+
+    return `isWhitelisted=false, absent from fullWhitelist ✓`;
   });
 
-  await test("restore initial whitelist state for self", async () => {
-    // If self was whitelisted before the test started, add it back
-    if (wasWhitelisted) {
-      const { txHash } = await token.addToWhitelist(SELF_ADDRESS);
-      assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
-      console.log(`    → restored: addToWhitelist tx: ${txHash}`);
-    } else {
-      console.log(`    → self was not whitelisted initially, no restore needed`);
+  await test("isWhitelisted(self)", async () => {
+    // Prerequisite: ensure self is NOT in whitelist
+    const { isWhitelisted: before } = await token.isWhitelisted(SELF_ADDRESS);
+    if (before) {
+      await token.removeFromWhitelist(SELF_ADDRESS);
+      console.log(`    → pre-condition: removed self from whitelist`);
     }
+
     const { isWhitelisted } = await token.isWhitelisted(SELF_ADDRESS);
-    assert(isWhitelisted === wasWhitelisted, `expected ${wasWhitelisted}, got ${isWhitelisted}`);
-    console.log(`    → isWhitelisted restored to ${isWhitelisted} ✓`);
+    assert(isWhitelisted === false, `expected false, got ${isWhitelisted}`);
+    return `isWhitelisted=${isWhitelisted}`;
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -232,24 +243,24 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
 
   let selfBalance = 0;
-  await test("balanceOf(self) decrypts and returns a non-negative value", async () => {
+  await test("balanceOf(self)", async () => {
     selfBalance = await getBalance(token, SELF_ADDRESS);
     assert(selfBalance >= 0, `invalid balance=${selfBalance}`);
-    console.log(`    → self balance=${selfBalance} ${tokenSymbol}`);
+    return `${selfBalance} ${tokenSymbol}`;
   });
 
   let recipientBalance = 0;
-  await test("balanceOf(recipient) decrypts and returns a non-negative value", async () => {
+  await test("balanceOf(recipient)", async () => {
     recipientBalance = await getBalance(token, RECIPIENT);
     assert(recipientBalance >= 0, `invalid balance=${recipientBalance}`);
-    console.log(`    → recipient balance=${recipientBalance} ${tokenSymbol}`);
+    return `${recipientBalance} ${tokenSymbol}`;
   });
 
-  await test("allowance(self, self) decrypts and returns a non-negative value", async () => {
+  await test("allowance(self, self)", async () => {
     const { formattedAllowance, allowanceHandle } = await token.allowance(SELF_ADDRESS, SELF_ADDRESS);
     assert(allowanceHandle !== undefined, "allowance handle is undefined");
     assert(parseFloat(formattedAllowance) >= 0, `invalid allowance=${formattedAllowance}`);
-    console.log(`    → allowance=${formattedAllowance} ${tokenSymbol}`);
+    return `${formattedAllowance} ${tokenSymbol}`;
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -258,33 +269,46 @@ async function main() {
 
   const hasOzToken = !!OZERC20_TOKEN_ADDRESS;
   await test(
-    `deposit ${TEST_AMOUNT} → self balance should increase by ${TEST_AMOUNT}`,
+    "deposit()",
     async () => {
-      const balanceBefore = await getBalance(token, SELF_ADDRESS);
-      console.log(`    → balance before: ${balanceBefore} ${tokenSymbol}`);
-
-      // Step 1: approve the eUSDC contract to pull the underlying OZ ERC20
       const ozToken = new OZERC20Token();
+ 
+      // Snapshot both balances before deposit
+      const ozBalanceBefore = parseFloat((await ozToken.balanceOf(SELF_ADDRESS)).formattedBalance);
+      const eBalanceBefore = await getBalance(token, SELF_ADDRESS);
+      console.log(`    → OZ ERC20 balance before : ${ozBalanceBefore}`);
+      console.log(`    → eUSDC balance before    : ${eBalanceBefore} ${tokenSymbol}`);
+ 
+      // Step 1: approve the eUSDC contract to pull the underlying OZ ERC20
       const { txHash: approveTx } = await ozToken.approve(PUSDC_TOKEN_ADDRESS, TEST_AMOUNT);
       assert(approveTx.startsWith("0x"), `invalid approveTx=${approveTx}`);
       console.log(`    → OZ approve tx: ${approveTx}`);
-
+ 
       // Step 2: deposit into eUSDC
       const { txHash: depositTx } = await token.deposit(TEST_AMOUNT);
       assert(depositTx.startsWith("0x"), `invalid depositTx=${depositTx}`);
       console.log(`    → deposit tx: ${depositTx}`);
-
-      // Verify: self balance should have increased by TEST_AMOUNT
-      const balanceAfter = await getBalance(token, SELF_ADDRESS);
-      console.log(`    → balance after: ${balanceAfter} ${tokenSymbol}`);
+ 
+      // Verify: OZ ERC20 balance should have decreased by TEST_AMOUNT
+      const ozBalanceAfter = parseFloat((await ozToken.balanceOf(SELF_ADDRESS)).formattedBalance);
       assertBalanceEqual(
-        String(balanceAfter),
-        String(balanceBefore + TEST_AMOUNT_F),
-        "self balance after deposit"
+        String(ozBalanceAfter),
+        String(ozBalanceBefore - TEST_AMOUNT_F),
+        "OZ ERC20 balance after deposit"
       );
-
-      // Update snapshot for subsequent tests
-      selfBalance = balanceAfter;
+      console.log(`    → OZ ERC20 balance after  : ${ozBalanceAfter} (-${TEST_AMOUNT} ✓)`);
+ 
+      // Verify: eUSDC balance should have increased by TEST_AMOUNT
+      const eBalanceAfter = await getBalance(token, SELF_ADDRESS);
+      assertBalanceEqual(
+        String(eBalanceAfter),
+        String(eBalanceBefore + TEST_AMOUNT_F),
+        "eUSDC balance after deposit"
+      );
+      console.log(`    → eUSDC balance after     : ${eBalanceAfter} ${tokenSymbol} (+${TEST_AMOUNT} ✓)`);
+ 
+      selfBalance = eBalanceAfter;
+      return `OZ: ${ozBalanceBefore}→${ozBalanceAfter} (-${TEST_AMOUNT}), eUSDC: ${eBalanceBefore}→${eBalanceAfter} (+${TEST_AMOUNT})`;
     },
     { skip: !hasOzToken }
   );
@@ -294,11 +318,11 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
 
   await test(
-    `transfer ${TEST_AMOUNT} to recipient → self -${TEST_AMOUNT}${IS_SELF_TRANSFER ? ", net 0 (self-transfer)" : `, recipient +${TEST_AMOUNT}`}`,
+    "transfer()",
     async () => {
       const selfBefore = await getBalance(token, SELF_ADDRESS);
       const recipientBefore = IS_SELF_TRANSFER ? selfBefore : await getBalance(token, RECIPIENT);
-      console.log(`    → self before: ${selfBefore} ${tokenSymbol}`);
+      console.log(`    → self before    : ${selfBefore} ${tokenSymbol}`);
       console.log(`    → recipient before: ${recipientBefore} ${tokenSymbol}`);
 
       const { txHash } = await token.transfer(RECIPIENT, TEST_AMOUNT);
@@ -307,20 +331,20 @@ async function main() {
 
       const selfAfter = await getBalance(token, SELF_ADDRESS);
       const recipientAfter = IS_SELF_TRANSFER ? selfAfter : await getBalance(token, RECIPIENT);
-      console.log(`    → self after: ${selfAfter} ${tokenSymbol}`);
-      console.log(`    → recipient after: ${recipientAfter} ${tokenSymbol}`);
 
       if (IS_SELF_TRANSFER) {
-        // Self-transfer: balance should be unchanged
         assertBalanceEqual(String(selfAfter), String(selfBefore), "self balance after self-transfer");
       } else {
         assertBalanceEqual(String(selfAfter), String(selfBefore - TEST_AMOUNT_F), "self balance after transfer");
         assertBalanceEqual(String(recipientAfter), String(recipientBefore + TEST_AMOUNT_F), "recipient balance after transfer");
       }
 
-      // Update snapshots
       selfBalance = selfAfter;
       recipientBalance = recipientAfter;
+
+      return IS_SELF_TRANSFER
+        ? `self: ${selfBefore} → ${selfAfter} ${tokenSymbol} (self-transfer, net 0)`
+        : `self: ${selfBefore} → ${selfAfter}, recipient: ${recipientBefore} → ${recipientAfter} ${tokenSymbol}`;
     }
   );
 
@@ -329,7 +353,7 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
 
   await test(
-    `approve ${TEST_AMOUNT} for self → allowance should equal ${TEST_AMOUNT}`,
+    "approve()",
     async () => {
       const { txHash } = await token.approve(SELF_ADDRESS, TEST_AMOUNT);
       assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
@@ -337,17 +361,17 @@ async function main() {
 
       // Verify allowance updated correctly
       const { formattedAllowance } = await token.allowance(SELF_ADDRESS, SELF_ADDRESS);
-      console.log(`    → allowance after approve: ${formattedAllowance} ${tokenSymbol}`);
       assertBalanceEqual(formattedAllowance, TEST_AMOUNT, "allowance after approve");
+      return `allowance=${formattedAllowance} ${tokenSymbol}`;
     }
   );
 
   await test(
-    `transferFrom self → recipient ${TEST_AMOUNT} → balances change correctly`,
+    "transferFrom()",
     async () => {
       const selfBefore = await getBalance(token, SELF_ADDRESS);
       const recipientBefore = IS_SELF_TRANSFER ? selfBefore : await getBalance(token, RECIPIENT);
-      console.log(`    → self before: ${selfBefore} ${tokenSymbol}`);
+      console.log(`    → self before    : ${selfBefore} ${tokenSymbol}`);
       console.log(`    → recipient before: ${recipientBefore} ${tokenSymbol}`);
 
       const { txHash } = await token.transferFrom(SELF_ADDRESS, RECIPIENT, TEST_AMOUNT);
@@ -356,8 +380,6 @@ async function main() {
 
       const selfAfter = await getBalance(token, SELF_ADDRESS);
       const recipientAfter = IS_SELF_TRANSFER ? selfAfter : await getBalance(token, RECIPIENT);
-      console.log(`    → self after: ${selfAfter} ${tokenSymbol}`);
-      console.log(`    → recipient after: ${recipientAfter} ${tokenSymbol}`);
 
       if (IS_SELF_TRANSFER) {
         assertBalanceEqual(String(selfAfter), String(selfBefore), "self balance after self-transferFrom");
@@ -368,12 +390,15 @@ async function main() {
 
       // Verify allowance is consumed (should be 0 after transferFrom)
       const { formattedAllowance } = await token.allowance(SELF_ADDRESS, SELF_ADDRESS);
-      console.log(`    → allowance after transferFrom: ${formattedAllowance} ${tokenSymbol}`);
       assertBalanceEqual(formattedAllowance, "0", "allowance should be 0 after transferFrom");
+      console.log(`    → allowance after transferFrom: ${formattedAllowance} ${tokenSymbol}`);
 
-      // Update snapshots
       selfBalance = selfAfter;
       recipientBalance = recipientAfter;
+
+      return IS_SELF_TRANSFER
+        ? `self: ${selfBefore} → ${selfAfter} ${tokenSymbol} (self-transfer, net 0), allowance=0`
+        : `self: ${selfBefore} → ${selfAfter}, recipient: ${recipientBefore} → ${recipientAfter} ${tokenSymbol}, allowance=0`;
     }
   );
 
@@ -382,7 +407,7 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
 
   await test(
-    `claim ${TEST_AMOUNT} to self → self balance should increase by ${TEST_AMOUNT}`,
+    "claim()",
     async () => {
       const balanceBefore = await getBalance(token, SELF_ADDRESS);
       console.log(`    → balance before: ${balanceBefore} ${tokenSymbol}`);
@@ -392,8 +417,6 @@ async function main() {
       console.log(`    → tx: ${txHash}`);
 
       const balanceAfter = await getBalance(token, SELF_ADDRESS);
-      console.log(`    → balance after: ${balanceAfter} ${tokenSymbol}`);
-
       assertBalanceEqual(
         String(balanceAfter),
         String(balanceBefore + TEST_AMOUNT_F),
@@ -401,6 +424,7 @@ async function main() {
       );
 
       selfBalance = balanceAfter;
+      return `${balanceBefore} → ${balanceAfter} ${tokenSymbol} (+${TEST_AMOUNT})`;
     }
   );
 
@@ -409,30 +433,28 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
 
   let balanceHandle = "";
-  await test("balanceOf(self) returns a non-empty handle", async () => {
+  await test("balanceOf(self) — fetch handle", async () => {
     const result = await token.balanceOf(SELF_ADDRESS);
     balanceHandle = result.balanceHandle;
     assert(balanceHandle.length > 0, "empty handle");
-    console.log(`    → handle: ${balanceHandle}`);
+    return `handle=${balanceHandle.slice(0, 20)}...`;
   });
 
-  await test("allowForDecryption grants public decryption access", async () => {
+  await test("allowForDecryption(handle)", async () => {
     if (!balanceHandle) throw new Error("balanceHandle is empty, cannot proceed");
     const { txHash } = await token.allowForDecryption(balanceHandle);
     assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
-    console.log(`    → tx: ${txHash}`);
+    return `tx=${txHash}`;
   });
 
-  await test("userDecrypt(handle) returns plaintext matching current balance", async () => {
+  await test("userDecrypt(handle)", async () => {
     if (!balanceHandle) throw new Error("balanceHandle is empty, cannot proceed");
     const plaintext = await token.userDecrypt(balanceHandle);
     assert(plaintext !== undefined && plaintext !== null, "plaintext is null");
     const decimals = await token.decimals();
     const decryptedBalance = parseFloat(ethers.formatUnits(plaintext, decimals));
-    console.log(`    → decrypted balance: ${decryptedBalance} ${tokenSymbol}`);
-    console.log(`    → expected balance : ${selfBalance} ${tokenSymbol}`);
-    // The decrypted value should match what balanceOf already returned
     assertBalanceEqual(String(decryptedBalance), String(selfBalance), "userDecrypt balance matches balanceOf");
+    return `decrypted=${decryptedBalance} ${tokenSymbol} (matches balanceOf ✓)`;
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -441,52 +463,36 @@ async function main() {
 
   // A burn address used as a dummy oracle for add/remove testing
   const DUMMY_ORACLE = "0x000000000000000000000000000000000000dEaD";
-
+ 
   await test(
-    "addToWhitelist(self) → isWhitelisted returns true",
-    async () => {
-      const { txHash } = await token.addToWhitelist(SELF_ADDRESS);
-      assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
-      console.log(`    → tx: ${txHash}`);
-
-      const { isWhitelisted } = await token.isWhitelisted(SELF_ADDRESS);
-      assert(isWhitelisted === true, `expected true, got ${isWhitelisted}`);
-      console.log(`    → isWhitelisted=${isWhitelisted} ✓`);
-    },
-    { skip: SKIP_OWNER }
-  );
-
-  await test(
-    "removeFromWhitelist(self) → isWhitelisted returns false",
-    async () => {
-      const { txHash } = await token.removeFromWhitelist(SELF_ADDRESS);
-      assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
-      console.log(`    → tx: ${txHash}`);
-
-      const { isWhitelisted } = await token.isWhitelisted(SELF_ADDRESS);
-      assert(isWhitelisted === false, `expected false, got ${isWhitelisted}`);
-      console.log(`    → isWhitelisted=${isWhitelisted} ✓`);
-    },
-    { skip: SKIP_OWNER }
-  );
-
-  await test(
-    "addOracle(dummyAddr) → removeOracle(dummyAddr) round-trip",
+    "addOracle() + removeOracle() round-trip [owner]",
     async () => {
       const { txHash: addTx } = await token.addOracle(DUMMY_ORACLE);
       assert(addTx.startsWith("0x"), `invalid addTx=${addTx}`);
       console.log(`    → addOracle tx: ${addTx}`);
-
       const { txHash: removeTx } = await token.removeOracle(DUMMY_ORACLE);
       assert(removeTx.startsWith("0x"), `invalid removeTx=${removeTx}`);
-      console.log(`    → removeOracle tx: ${removeTx}`);
+      return `addOracle + removeOracle ✓`;
+    },
+    { skip: SKIP_OWNER }
+  );
+
+  await test(
+    "addOracle() + removeOracle() round-trip [owner]",
+    async () => {
+      const { txHash: addTx } = await token.addOracle(DUMMY_ORACLE);
+      assert(addTx.startsWith("0x"), `invalid addTx=${addTx}`);
+      console.log(`    → addOracle tx: ${addTx}`);
+      const { txHash: removeTx } = await token.removeOracle(DUMMY_ORACLE);
+      assert(removeTx.startsWith("0x"), `invalid removeTx=${removeTx}`);
+      return `addOracle + removeOracle ✓`;
     },
     { skip: SKIP_OWNER }
   );
 
   // transferOwnership is destructive — skipped by default to prevent accidents
   await test(
-    "transferOwnership (dangerous — skipped by default)",
+    "transferOwnership() [dangerous — skipped by default]",
     async () => {
       throw new Error("Manually remove the skip flag and specify a target address before testing");
     },
