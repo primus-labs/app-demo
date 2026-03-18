@@ -330,7 +330,7 @@ export const PMUSDTokenV2_1_ABI = [
           "type": "bool"
         }
       ],
-      "stateMutability": "payable",
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
