@@ -23,3 +23,5 @@ generated
 *-bak
 
 server_pk*.bin
+
+**/.cache
