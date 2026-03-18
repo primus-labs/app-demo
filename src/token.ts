@@ -46,7 +46,8 @@ export class Erc20Token {
     return {};
   }
   async getFheFee(functionName: string) {
-    return await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID() });
+    const { totalFee } = await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID(), verbose: 1 });
+    return totalFee;
   }
 
   // ========== Hooks for Encrypted Version ==========
