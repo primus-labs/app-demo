@@ -120,7 +120,7 @@ Commands:
 
 ### Fist-of-All
 
-**Prerequisite**: If you are the contract deployer, you must run `addOracle` and `bindNativeToExecutor` before (others) executing any other CLI commands.
+**Prerequisite**: If you are the contract deployer, you must run `addOracle` before (others) executing any other CLI commands.
 
 #### addOracle
 
