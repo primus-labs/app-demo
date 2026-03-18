@@ -3,8 +3,8 @@ import { PrivyTokenU64V2_1_ABI } from "./abis/PrivyTokenU64V2_1_ABI";
 import { OZERC20_ABI } from "./abis/OZERC20_ABI";
 import { PUSDCTokenV2_1_ABI } from "./abis/PUSDCTokenV2_1_ABI";
 import { PMUSDTokenV2_1_ABI } from "./abis/PMUSDTokenV2_1_ABI";
-import { requestEncrypt, requestDecrypt, FheType } from "@primuslabs/fhe-sdk";
-import { getACLContract as _getACLContract } from "@primuslabs/fhe-sdk/dist/utils";
+import { requestEncrypt, requestDecrypt, FheType, estimateFheFee } from "@primuslabs/fhe-sdk";
+import { getACLContract } from "@primuslabs/fhe-sdk/dist/utils";
 import 'dotenv/config';
 
 
@@ -33,15 +33,20 @@ export class Erc20Token {
     this.tokenAddress = tokenAddress;
   }
 
-  txOptions() {
-    return this.feeValue > 0n ? { value: this.feeValue } : {};
-  }
-
   async getChainID(): Promise<number> {
     if (!this.chainId) {
       this.chainId = Number((await this.provider.getNetwork()).chainId);
     }
     return this.chainId;
+  }
+
+  txOptions(options: any = {}) {
+    if (this.feeValue > 0n) return { value: this.feeValue };
+    if (options?.feeValue) return { value: options.feeValue };
+    return {};
+  }
+  async getFheFee(functionName: string) {
+    return await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID() });
   }
 
   // ========== Hooks for Encrypted Version ==========
@@ -129,7 +134,8 @@ export class Erc20Token {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.transfer(to, amountHandle, this.txOptions());
+    const txOpt = this.txOptions({ feeValue: await this.getFheFee("transfer") });
+    const tx = await this.tokenContract.transfer(to, amountHandle, txOpt);
     console.log("Transfer tx:", tx.hash);
     await tx.wait();
     console.log("Transfer Confirmed");
@@ -140,7 +146,7 @@ export class Erc20Token {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("Approve amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.approve(spender, amountHandle, this.txOptions());
+    const tx = await this.tokenContract.approve(spender, amountHandle);
     console.log("Approve tx:", tx.hash);
     await tx.wait();
     console.log("Approve Confirmed");
@@ -151,7 +157,8 @@ export class Erc20Token {
     const decimals = await this.decimals();
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("TransferFrom amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, this.txOptions());
+    const txOpt = this.txOptions({ feeValue: await this.getFheFee("transferFrom") });
+    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, txOpt);
     console.log("TransferFrom tx:", tx.hash);
     await tx.wait();
     console.log("TransferFrom Confirmed");
@@ -169,11 +176,9 @@ export class OZERC20Token extends Erc20Token {
 
 export class EncryptedErc20Token extends Erc20Token {
   private readonly ACL_ADDRESS = process.env.ACL_ADDRESS || "";
-  protected aclContract: EthersT.Contract;
 
   constructor(tokenAddress: string, tokenABI: EthersT.Interface | EthersT.InterfaceAbi) {
     super(tokenAddress, tokenABI);
-    this.aclContract = _getACLContract(this.ACL_ADDRESS, this.signer ?? this.provider);
   }
 
   protected getFheType(): FheType {
@@ -203,11 +208,12 @@ export class EncryptedErc20Token extends Erc20Token {
   }
 
   async allowForDecryption(handle: string, account?: string) {
+    const aclContract = await getACLContract(this.ACL_ADDRESS, this.signer ?? this.provider);
     let tx;
     if (account) {
-      tx = await this.aclContract['accessPolicy(bytes32,address,uint8)'](handle, account, 2);
+      tx = await aclContract['accessPolicy(bytes32,address,uint8)'](handle, account, 2);
     } else {
-      tx = await this.aclContract.allowForDecryption([handle]);
+      tx = await aclContract.allowForDecryption([handle]);
     }
     console.log("allowForDecryption tx:", tx.hash);
     await tx.wait();
@@ -273,10 +279,12 @@ export class PrivyTokenU64V2_1 extends PrivyTokenWithWhiteList {
     return FheType.ve_uint64;
   }
   protected async _mint(_: string, amount: any): Promise<any> {
-    return await this.tokenContract.mint(amount, this.txOptions());
+    const txOpt = this.txOptions({ feeValue: await this.getFheFee("mint") });
+    return await this.tokenContract.mint(amount, txOpt);
   }
   protected async _burn(_: string, amount: any): Promise<any> {
-    return await this.tokenContract.burn(amount, this.txOptions());
+    const txOpt = this.txOptions({ feeValue: await this.getFheFee("burn") });
+    return await this.tokenContract.burn(amount, txOpt);
   }
 }
 
@@ -296,7 +304,8 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const decimals = await this.decimals();
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Deposit amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.deposit(amountHandle, this.txOptions());
+    const txOpt = this.txOptions({ feeValue: await this.getFheFee("deposit") });
+    const tx = await this.tokenContract.deposit(amountHandle, txOpt);
     console.log("Deposit tx:", tx.hash);
     await tx.wait();
     console.log("Deposit Confirmed");
@@ -307,7 +316,8 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const decimals = await this.decimals();
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Claim amountHandle:", this.formatHandle(amountHandle));
-    const tx = await this.tokenContract.claim(to, amountHandle, this.txOptions());
+    const txOpt = this.txOptions({ feeValue: await this.getFheFee("claim") });
+    const tx = await this.tokenContract.claim(to, amountHandle, txOpt);
     console.log("Claim tx:", tx.hash);
     await tx.wait();
     console.log("Claim Confirmed");
@@ -317,7 +327,7 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
   async addOracle(oracle: string) {
     const tx = await this.tokenContract.addOracle(oracle);
     console.log("addOracle tx:", tx.hash);
-    await tx.wait(); 
+    await tx.wait();
     console.log("addOracle Confirmed");
     return { oracle: oracle, txHash: tx.hash };
   }
