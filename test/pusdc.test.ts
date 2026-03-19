@@ -109,6 +109,7 @@ const IS_SELF_TRANSFER = RECIPIENT.toLowerCase() === SELF_ADDRESS.toLowerCase();
 
 // ─── Balance snapshot helper ──────────────────────────────────────────────────
 async function getBalance(token: PUSDCTokenV2_1, address: string): Promise<number> {
+  await sleep(20000);
   const { formattedBalance } = await token.balanceOf(address);
   return parseFloat(formattedBalance);
 }
@@ -333,8 +334,6 @@ async function main() {
       assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
       console.log(`    → tx: ${txHash}`);
 
-      await sleep(10000);
-
       const selfAfter = await getBalance(token, SELF_ADDRESS);
       const recipientAfter = IS_SELF_TRANSFER ? selfAfter : await getBalance(token, RECIPIENT);
 
@@ -380,8 +379,6 @@ async function main() {
       const { txHash: transferTx } = await token.transferFrom(SELF_ADDRESS, RECIPIENT, TEST_AMOUNT);
       assert(transferTx.startsWith("0x"), `invalid transferTx=${transferTx}`);
       console.log(`    → transferFrom tx: ${transferTx}`);
-
-      await sleep(10000);
  
       const selfAfter = await getBalance(token, SELF_ADDRESS);
       const recipientAfter = IS_SELF_TRANSFER ? selfAfter : await getBalance(token, RECIPIENT);
@@ -423,8 +420,6 @@ async function main() {
       const { txHash } = await token.claim(SELF_ADDRESS, TEST_AMOUNT);
       assert(txHash.startsWith("0x"), `invalid txHash=${txHash}`);
       console.log(`    → tx: ${txHash}`);
-
-      await sleep(10000);
 
       const ozBbalanceAfter = parseFloat((await ozToken.balanceOf(SELF_ADDRESS)).formattedBalance);
       console.log(`    → OZ ERC20 balance after claim : ${ozBbalanceAfter}`);
