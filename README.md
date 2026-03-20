@@ -34,7 +34,7 @@
 
 | Contract              | Address                                    | Chain(ID)                  |
 | --------------------- | ------------------------------------------ | -------------------------- |
-| Encrypted USDC(eUSDC) | 0x3dE062d44EE8e4767C0c3C529772EF47cDA8E7Cd | HashKey Chain Testnet(133) |
+| Encrypted USDC(eUSDC) | 0x50AcA8D550d5531788cdB5873F027784135c3467 | HashKey Chain Testnet(133) |
 
 
 <br/>
