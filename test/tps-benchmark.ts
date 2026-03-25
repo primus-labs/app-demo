@@ -91,16 +91,19 @@ function fmt(ms: number) {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
 }
 
-async function getDecryptedBalance(address: string): Promise<number> {
+async function getDecryptedBalance(address: string, timeoutMs = 30000): Promise<number> {
   try {
     const handle = await contract.balanceOf(address);
+    const plain = await Promise.race([
+      requestDecrypt(wallet, ACL_ADDRESS, FheType.ve_uint256, handle,
+        { isMock: process.env.MOCK_TEST === "ON" }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("decrypt timeout")), timeoutMs))
+    ]);
     const decimals: number = await contract.decimals();
-    const plain = await requestDecrypt(
-      wallet, ACL_ADDRESS, FheType.ve_uint256, handle,
-      { isMock: process.env.MOCK_TEST === "ON" }
-    );
-    return parseFloat(ethers.formatUnits(plain, decimals));
-  } catch {
+    return parseFloat(ethers.formatUnits(plain as bigint, decimals));
+  } catch (e) {
+    console.log(`${C.yellow}[balance] getDecryptedBalance failed: ${e}${C.reset}`);
     return -1;
   }
 }
@@ -158,6 +161,7 @@ async function trackViaBalance(): Promise<void> {
 
       const delta   = cur - baseline;
       const settled = Math.round(delta / TPS_AMOUNT_F);
+      console.log(`${C.dim}[tracker] cur=${cur} baseline=${baseline} delta=${delta.toFixed(6)} settled=${settled} pending=${pending.length}${C.reset}`);
 
       if (settled > 0) {
         // Mark completions in FIFO order against ALL confirmed-but-not-yet-complete txs.
@@ -356,7 +360,7 @@ async function main() {
 
   const onChainTPS  = confirmed / testDurationS;
   const completeTPS = completed / testDurationS;
-  const firstAt     = records[0].initiatedAt;
+  const firstAt     = records[0].onChainAt ?? records[0].initiatedAt;
   const lastAt      = Math.max(...done.map(r => r.completedAt ?? 0));
   const effectiveTPS = completed / ((lastAt - firstAt) / 1000);
 
@@ -368,7 +372,7 @@ async function main() {
   console.log(`    Fully completed txs (on-chain + off-chain FHE), denominator = send duration`);
   console.log();
   console.log(`  ${C.bold}Effective TPS${C.reset} : ${C.cyan}${effectiveTPS.toFixed(3)} tx/s${C.reset}`);
-  console.log(`    Window = first tx initiated → last tx completed\n`);
+  console.log(`    Window = first tx onchain → last tx completed\n`);
 
   console.log(`${C.bold}Time windows:${C.reset}`);
   console.log(`  Send phase duration : ${testDurationS.toFixed(2)}s`);
