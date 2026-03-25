@@ -19,17 +19,18 @@
  *   - Listen for a specified settlement event
  *   - Each event emission marks one tx as complete
  *
- * Usage:
+ * Usage:(You must first call deposit to transfer tokens into the eUSDC contract before running the tests.)
  *   npx tsx test/tps-benchmark.ts
  *
  * Environment variables:
  *   TPS_DURATION=60           Test duration in seconds (default: 60)
- *   TPS_AMOUNT=0.001          Amount per transfer (default: 0.001)
+ *   TPS_AMOUNT=0.000001       Amount per transfer (default: 0.000001)
  *   TPS_MODE=balance          Completion mode: "balance" or "event" (default: balance)
  *   TPS_POLL_INTERVAL=5000    Balance poll interval in ms (default: 5000)
  *   TPS_SETTLEMENT_EVENT=...  Settlement event name (event mode only)
  *   TPS_RECIPIENT=0x...       Recipient address (default: self)
  *   TPS_TX_DELAY=200          Delay between consecutive tx broadcasts in ms (default: 200)
+ *   TPS_SETTLE_TIMEOUT=120    Seconds to wait for off-chain FHE settlement after last confirmation (default: 120)
  */
 
 import { ethers } from "ethers";
@@ -50,11 +51,12 @@ const PUSDC_TOKEN_ADDRESS = process.env.PUSDC_TOKEN_ADDRESS || "";
 const ACL_ADDRESS         = process.env.ACL_ADDRESS         || "";
 
 const TPS_DURATION         = parseInt(process.env.TPS_DURATION       || "60");
-const TPS_AMOUNT           = process.env.TPS_AMOUNT                  || "0.001";
+const TPS_AMOUNT           = process.env.TPS_AMOUNT                  || "0.000001";
 const TPS_MODE             = process.env.TPS_MODE                    || "balance";
 const TPS_POLL_INTERVAL    = parseInt(process.env.TPS_POLL_INTERVAL  || "5000");
 const TPS_SETTLEMENT_EVENT = process.env.TPS_SETTLEMENT_EVENT        || "";
-const TPS_TX_DELAY         = parseInt(process.env.TPS_TX_DELAY       || "200");
+const TPS_TX_DELAY         = parseInt(process.env.TPS_TX_DELAY        || "200");
+const TPS_SETTLE_TIMEOUT   = parseInt(process.env.TPS_SETTLE_TIMEOUT  || "120") * 1000;
 
 if (!PRIVATE_KEY || !RPC_URL || !PUSDC_TOKEN_ADDRESS) {
   console.error(`${C.red}Missing: PRIVATE_KEY / RPC_URL / PUSDC_TOKEN_ADDRESS${C.reset}`);
@@ -158,8 +160,12 @@ async function trackViaBalance(): Promise<void> {
       const settled = Math.round(delta / TPS_AMOUNT_F);
 
       if (settled > 0) {
+        // Mark completions in FIFO order against ALL confirmed-but-not-yet-complete txs.
+        // Re-query here (not the stale `pending`) so we catch txs confirmed after the
+        // last poll but before this balance read.
+        const toMark = records.filter(r => r.onChainAt && !r.completedAt && !r.error);
         let n = 0;
-        for (const r of pending) {
+        for (const r of toMark) {
           if (n >= settled) break;
           r.completedAt = Date.now();
           n++;
@@ -173,15 +179,20 @@ async function trackViaBalance(): Promise<void> {
       }
     }
 
-    // All txs that are either not yet on-chain or not yet completed
-    const anyUnfinished = records.filter(r => !r.completedAt && !r.error);
-    if (testEndTime > 0 && anyUnfinished.length === 0) break;
+    // Exit only when the send phase is done, at least one tx exists,
+    // every tx is confirmed on-chain, and every tx is completed or failed.
+    const allSent      = testEndTime > 0;
+    const hasTxs       = records.length > 0;
+    const allConfirmed = records.every(r => r.onChainAt || r.error);
+    const allDone      = records.every(r => r.completedAt || r.error);
+    if (allSent && hasTxs && allConfirmed && allDone) break;
 
-    // Safety timeout: 120s after the last on-chain confirmation
-    const lastConfirmedAt = Math.max(0, ...records.filter(r => r.onChainAt).map(r => r.onChainAt!));
-    if (lastConfirmedAt > 0 && Date.now() > lastConfirmedAt + 120_000) {
+    // Safety timeout: TPS_SETTLE_TIMEOUT after the last on-chain confirmation
+    const confirmedTimes = records.filter(r => r.onChainAt).map(r => r.onChainAt!);
+    const lastConfirmedAt = confirmedTimes.length > 0 ? Math.max(...confirmedTimes) : 0;
+    if (allSent && allConfirmed && lastConfirmedAt > 0 && Date.now() > lastConfirmedAt + TPS_SETTLE_TIMEOUT) {
       const stillPending = records.filter(r => r.onChainAt && !r.completedAt && !r.error);
-      console.log(`${C.yellow}[tracker] 120s timeout after last confirmation, ${stillPending.length} tx(s) still pending${C.reset}`);
+      console.log(`${C.yellow}[tracker] settle timeout, ${stillPending.length} tx(s) still pending${C.reset}`);
       break;
     }
   }
@@ -203,7 +214,7 @@ async function trackViaEvent(eventName: string): Promise<void> {
     console.log(`${C.green}[TX ${r.id}] ✓ complete (event) total=${fmt(total)} off-chain=${fmt(offChain)}${C.reset}`);
   });
 
-  while (testEndTime === 0 || Date.now() < testEndTime + 120_000) {
+  while (testEndTime === 0 || Date.now() < testEndTime + TPS_SETTLE_TIMEOUT) {
     await sleep(1000);
     const stillPending = records.filter(r => r.onChainAt && !r.completedAt && !r.error);
     if (testEndTime > 0 && stillPending.length === 0) break;
@@ -303,9 +314,10 @@ async function main() {
   await Promise.all(confirmPromises);
 
   console.log(`${C.yellow}▶ All confirmed on-chain. Waiting for off-chain FHE computation...${C.reset}`);
+  // Start the settle timeout only after all on-chain confirmations are in
   await Promise.race([
     trackerDone,
-    sleep(120_000).then(() => console.log(`${C.yellow}[tracker] 120s timeout${C.reset}`)),
+    sleep(TPS_SETTLE_TIMEOUT).then(() => console.log(`${C.yellow}[tracker] settle timeout${C.reset}`)),
   ]);
 
   // ─── Report ───────────────────────────────────────────────────────────────────
