@@ -173,10 +173,15 @@ async function trackViaBalance(): Promise<void> {
       }
     }
 
-    const stillPending = records.filter(r => r.onChainAt && !r.completedAt && !r.error);
-    if (testEndTime > 0 && stillPending.length === 0 && Date.now() > testEndTime) break;
-    if (testEndTime > 0 && Date.now() > testEndTime + 120_000) {
-      console.log(`${C.yellow}[tracker] 120s timeout, ${stillPending.length} tx(s) still pending${C.reset}`);
+    // All txs that are either not yet on-chain or not yet completed
+    const anyUnfinished = records.filter(r => !r.completedAt && !r.error);
+    if (testEndTime > 0 && anyUnfinished.length === 0) break;
+
+    // Safety timeout: 120s after the last on-chain confirmation
+    const lastConfirmedAt = Math.max(0, ...records.filter(r => r.onChainAt).map(r => r.onChainAt!));
+    if (lastConfirmedAt > 0 && Date.now() > lastConfirmedAt + 120_000) {
+      const stillPending = records.filter(r => r.onChainAt && !r.completedAt && !r.error);
+      console.log(`${C.yellow}[tracker] 120s timeout after last confirmation, ${stillPending.length} tx(s) still pending${C.reset}`);
       break;
     }
   }
@@ -220,6 +225,19 @@ async function main() {
   console.log(`  Mode          : ${TPS_MODE}`);
   console.log(`  TX delay      : ${TPS_TX_DELAY}ms`);
   console.log(`  Poll interval : ${TPS_POLL_INTERVAL}ms\n`);
+
+  // Whitelist self so we can decrypt the recipient's balance (non-self-transfer only)
+  if (!IS_SELF_TRANSFER) {
+    const isWhitelisted: boolean = await contract.isWhitelisted(SELF);
+    if (!isWhitelisted) {
+      console.log(`${C.yellow}Adding ${SELF} to whitelist for balance decryption...${C.reset}`);
+      const tx = await contract.addToWhitelist(SELF);
+      await tx.wait();
+      console.log(`${C.green}Whitelisted.${C.reset}\n`);
+    } else {
+      console.log(`${C.dim}Already whitelisted.${C.reset}\n`);
+    }
+  }
 
   const initBalance = await getDecryptedBalance(SELF);
   console.log(`${C.bold}Initial balance: ${initBalance}${C.reset}\n`);
