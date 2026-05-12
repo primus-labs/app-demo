@@ -234,15 +234,22 @@ function printReport(records: TxRecord[], testStart: number, testEndTime: number
     console.log(`  On-chain TPS   : ${C.yellow}${onChainTPS.toFixed(3)} tx/s${C.reset}`);
 
     if (done.length > 0) {
-      // FHE TPS = 1 / Avg off-chain FHE compute（秒），表示链下 FHE 计算的吞吐上限
-      const avgOffChainMs = average(done.map(r => r.completedAt! - (r.onChainAt ?? r.initiatedAt)));
-      const fheTPS = avgOffChainMs > 0 ? 1000 / avgOffChainMs : 0;
-      console.log(`  FHE TPS        : ${C.yellow}${fheTPS.toFixed(3)} tx/s${C.reset}`);
-
+      const firstConfirmedAt = Math.min(...confirmedRecords.map(r => r.onChainAt!));
+      const lastConfirmedAt = Math.max(...confirmedRecords.map(r => r.onChainAt!));
       const lastCompletedAt = Math.max(...done.map(r => r.completedAt!));
-      const e2eWindowS = (lastCompletedAt - records[0].initiatedAt) / 1000;
+      // console.log("firstConfirmedAt:", firstConfirmedAt);
+      // console.log("lastConfirmedAt:", lastConfirmedAt);
+      // console.log("lastCompletedAt:", lastCompletedAt);
+
+      // FHE TPS: window from last on-chain confirmation to last FHE completion
+      const fheWindowS = (lastCompletedAt - lastConfirmedAt) / 1000;
+      const fheTPS = completed / Math.max(fheWindowS, 0.001);
+      console.log(`  FHE TPS        : ${C.yellow}${fheTPS.toFixed(6)} tx/s${C.reset}  (window=${fheWindowS.toFixed(1)}s)`);
+
+      // Effective TPS: window from first on-chain confirmation to last completion
+      const e2eWindowS = (lastCompletedAt - firstConfirmedAt) / 1000;
       const effectiveTPS = completed / Math.max(e2eWindowS, 0.001);
-      console.log(`  Effective TPS  : ${C.cyan}${effectiveTPS.toFixed(3)} tx/s${C.reset}`);
+      console.log(`  Effective TPS  : ${C.cyan}${effectiveTPS.toFixed(6)} tx/s${C.reset}  (window=${e2eWindowS.toFixed(1)}s)`);
     } else {
       console.log(`  FHE TPS        : n/a (no balance settlements observed)`);
       console.log(`  Effective TPS  : n/a (no balance settlements observed)`);
