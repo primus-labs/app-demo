@@ -70,6 +70,7 @@ export interface TxRecord {
   from: string;
   to: string;
   txHash: string;
+  eventKeys?: string[];
   initiatedAt: number;
   encryptedAt?: number;
   encryptionMs?: number;

@@ -12,7 +12,8 @@
  *   TPS_ENCRYPT_MODE=inline       Encrypt inside the send loop, measuring end-to-end client flow.
  *   TPS_MODE=balance              Count completion from decrypted recipient balance deltas.
  *   TPS_TX_COUNT=100              Number of transfers to prepare/send.
- *   TPS_DURATION=60               Max send-phase duration in seconds.
+ *   TPS_DURATION=600              Max send-phase duration in seconds.
+ *   TPS_SETTLE_TIMEOUT=14400      Max settlement wait after the last confirmation, in seconds.
  */
 
 import "dotenv/config";

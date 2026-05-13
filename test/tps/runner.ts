@@ -28,6 +28,12 @@ function pairForIndex(pairs: RuntimePair[], index: number): RuntimePair {
   return pairs[index % pairs.length];
 }
 
+function preparedTransferEventKeys(prepared: PreparedTransfer): string[] {
+  const handle = (prepared.amountHandle as any)?.handle ?? prepared.amountHandle;
+  if (typeof handle !== "string") return [];
+  return /^0x[0-9a-fA-F]{64}$/.test(handle) ? [handle.toLowerCase()] : [];
+}
+
 export function planRecipientBaselines(
   pairs: Array<Pick<RuntimePair, "recipientAddress">>,
   txCount: number
@@ -153,7 +159,7 @@ function printCompletionObserver(stats: TrackerStats) {
     console.log(`  Poll rounds    : ${stats.polls}`);
     console.log(`  Decrypt calls  : ${stats.decryptAttempts} (${successfulDecrypts} ok / ${stats.decryptFailures} failed)`);
     console.log(`  Avg decrypt    : ${avgDecryptMs}`);
-    console.log(`  TPS note       : Effective TPS includes polling and decrypt observation delay.\n`);
+    console.log(`  TPS note       : End-to-End TPS includes polling and decrypt observation delay.\n`);
     return;
   }
 
@@ -162,7 +168,7 @@ function printCompletionObserver(stats: TrackerStats) {
 }
 
 export function getReportTpsMetricLabels(): string[] {
-  return ["End-to-End TPS", "Effective TPS"];
+  return ["End-to-End TPS"];
 }
 
 function printReport(records: TxRecord[], trackerStats: TrackerStats) {
@@ -220,30 +226,18 @@ function printReport(records: TxRecord[], trackerStats: TrackerStats) {
 
   if (confirmedRecords.length > 0) {
     const firstConfirmedAt = Math.min(...confirmedRecords.map(r => r.onChainAt!));
-    const lastConfirmedAt = Math.max(...confirmedRecords.map(r => r.onChainAt!));
 
     if (done.length > 0) {
       const lastCompletedAt = Math.max(...done.map(r => r.completedAt!));
-      // console.log("firstConfirmedAt:", firstConfirmedAt);
-      // console.log("lastConfirmedAt:", lastConfirmedAt);
-      // console.log("lastCompletedAt:", lastCompletedAt);
-
-      // End-to-End TPS: window from last on-chain confirmation to last FHE completion
-      const fheWindowS = (lastCompletedAt - lastConfirmedAt) / 1000;
-      const fheTPS = completed / Math.max(fheWindowS, 0.001);
-      console.log(`  End-to-End TPS : ${C.yellow}${fheTPS.toFixed(6)} tx/s${C.reset}`);
-
-      // Effective TPS: window from first on-chain confirmation to last completion
+      // End-to-End TPS: window from first on-chain confirmation to last completion.
       const e2eWindowS = (lastCompletedAt - firstConfirmedAt) / 1000;
-      const effectiveTPS = completed / Math.max(e2eWindowS, 0.001);
-      console.log(`  Effective TPS  : ${C.cyan}${effectiveTPS.toFixed(6)} tx/s${C.reset}`);
+      const endToEndTPS = completed / Math.max(e2eWindowS, 0.001);
+      console.log(`  End-to-End TPS : ${C.cyan}${endToEndTPS.toFixed(6)} tx/s${C.reset}`);
     } else {
       console.log(`  End-to-End TPS : n/a (no balance settlements observed)`);
-      console.log(`  Effective TPS  : n/a (no balance settlements observed)`);
     }
   } else {
     console.log(`  End-to-End TPS : n/a (no balance settlements observed)`);
-    console.log(`  Effective TPS  : n/a (no balance settlements observed)`);
   }
 }
 
@@ -302,6 +296,7 @@ export async function runBenchmark(config: BenchmarkConfig) {
       from: pair.senderAddress,
       to: preparedTransfer.recipientAddress,
       txHash: "",
+      eventKeys: preparedTransferEventKeys(preparedTransfer),
       initiatedAt: config.encryptMode === "inline"
         ? preparedTransfer.encryptedAt - preparedTransfer.encryptionMs
         : Date.now(),

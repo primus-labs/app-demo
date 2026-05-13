@@ -15,6 +15,46 @@ interface TrackerState {
   isSendDone: () => boolean;
 }
 
+interface EventLogLike {
+  transactionHash?: string;
+  topics: readonly string[];
+  data: string;
+}
+
+function addCompletionKey(keys: Set<string>, value: unknown): void {
+  if (typeof value !== "string") return;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) return;
+  keys.add(value.toLowerCase());
+}
+
+export function eventLogCompletionKeys(log: EventLogLike): string[] {
+  const keys = new Set<string>();
+  addCompletionKey(keys, log.transactionHash);
+  for (const topic of log.topics) addCompletionKey(keys, topic);
+
+  const data = log.data.replace(/^0x/i, "");
+  for (let offset = 0; offset + 64 <= data.length; offset += 64) {
+    addCompletionKey(keys, `0x${data.slice(offset, offset + 64)}`);
+  }
+
+  return [...keys];
+}
+
+export function findEventCompletionRecord(records: TxRecord[], keys: string[]): TxRecord | undefined {
+  const normalizedKeys = new Set(keys.map(key => key.toLowerCase()));
+  return records.find(record => {
+    if (record.completedAt || record.error) return false;
+    if (record.txHash && normalizedKeys.has(record.txHash.toLowerCase())) return true;
+    return (record.eventKeys || []).some(key => normalizedKeys.has(key.toLowerCase()));
+  });
+}
+
+export function markEventRecordComplete(record: TxRecord, observedAt: number): boolean {
+  if (!record.onChainAt) return false;
+  record.completedAt = Math.max(observedAt, record.onChainAt);
+  return true;
+}
+
 function logMarked(records: TxRecord[], completedAt: number, mode: string) {
   for (const r of records.filter(r => r.completedAt === completedAt)) {
     const recordCompletedAt = r.completedAt!;
@@ -125,6 +165,7 @@ export async function trackViaEvent(
     decryptLatenciesMs: [],
     observedEvents: 0,
   };
+  const pendingObservedAt = new Map<number, number>();
 
   const provider = runtime.provider;
   const contract = runtime.settlementContract;
@@ -133,12 +174,24 @@ export async function trackViaEvent(
   const eventAddress = await contract.getAddress();
   console.log(`${C.dim}[tracker] event topic=${eventTopic}, contract=${eventAddress}${C.reset}`);
 
-  const txByHash = new Map<string, TxRecord>();
   let lastCheckedBlock = await provider.getBlockNumber();
 
   while (true) {
     await sleep(1000);
     stats.polls++;
+
+    for (const [recordId, observedAt] of pendingObservedAt) {
+      const record = state.records.find(r => r.id === recordId);
+      if (!record || record.completedAt || record.error) {
+        pendingObservedAt.delete(recordId);
+        continue;
+      }
+      if (markEventRecordComplete(record, observedAt)) {
+        pendingObservedAt.delete(recordId);
+        stats.observedEvents = (stats.observedEvents || 0) + 1;
+        console.log(`${C.green}[TX ${record.id}] complete (event) total=${fmt(record.completedAt! - record.initiatedAt)} off-chain=${fmt(record.completedAt! - record.onChainAt!)}${C.reset}`);
+      }
+    }
 
     try {
       const currentBlock = await provider.getBlockNumber();
@@ -150,23 +203,23 @@ export async function trackViaEvent(
           toBlock: currentBlock,
         });
         for (const log of logs) {
-          const jobId = log.topics[1]; // indexed bytes32 = transfer txHash
-          if (!jobId) continue;
-          for (const r of state.records) {
-            if (!txByHash.has(r.txHash.toLowerCase())) {
-              txByHash.set(r.txHash.toLowerCase(), r);
-            }
-          }
-          const record = txByHash.get(jobId.toLowerCase());
+          const keys = eventLogCompletionKeys(log);
+          if (keys.length === 0) continue;
+          const record = findEventCompletionRecord(state.records, keys);
           if (!record || record.completedAt || record.error) continue;
-          record.completedAt = Date.now();
+          const observedAt = Date.now();
+          if (!markEventRecordComplete(record, observedAt)) {
+            pendingObservedAt.set(record.id, observedAt);
+            continue;
+          }
           stats.observedEvents = (stats.observedEvents || 0) + 1;
-          const total = record.completedAt - record.initiatedAt;
-          const offChain = record.completedAt - (record.onChainAt ?? record.initiatedAt);
+          const completedAt = record.completedAt!;
+          const total = completedAt - record.initiatedAt;
+          const offChain = completedAt - (record.onChainAt ?? record.initiatedAt);
           console.log(
             `${C.green}[TX ${record.id}] complete (event) ` +
             `total=${fmt(total)} off-chain=${fmt(offChain)} ` +
-            `jobId=${jobId.slice(0, 12)}...${C.reset}`
+            `key=${keys[0].slice(0, 12)}...${C.reset}`
           );
         }
         if (logs.length > 0) {

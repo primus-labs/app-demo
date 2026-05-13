@@ -134,10 +134,14 @@ export function parseBenchmarkConfig(env: NodeJS.ProcessEnv = process.env): Benc
   if (completionMode !== "balance" && completionMode !== "event") {
     throw new Error(`TPS_MODE must be "balance" or "event", got "${completionMode}"`);
   }
-  if (completionMode === "event" && !env.TPS_SETTLEMENT_EVENT) {
+  const settlementEvent = env.TPS_SETTLEMENT_EVENT || "";
+  const settlementContractAddress = completionMode === "event" && settlementEvent === "Transfer"
+    ? env.PUSDC_TOKEN_ADDRESS
+    : env.SETTLEMENT_ADDRESS;
+  if (completionMode === "event" && !settlementEvent) {
     throw new Error("TPS_SETTLEMENT_EVENT is required when TPS_MODE=event");
   }
-  if (completionMode === "event" && !env.SETTLEMENT_ADDRESS) {
+  if (completionMode === "event" && !settlementContractAddress) {
     throw new Error("SETTLEMENT_ADDRESS is required when TPS_MODE=event");
   }
 
@@ -162,19 +166,19 @@ export function parseBenchmarkConfig(env: NodeJS.ProcessEnv = process.env): Benc
     tokenAddress: env.PUSDC_TOKEN_ADDRESS!,
     aclAddress: env.ACL_ADDRESS!,
     whitelistAddress: env.WHITELIST_ADDRESS || "",
-    settlementContractAddress: env.SETTLEMENT_ADDRESS || "",
-    durationSeconds: parseInteger(env.TPS_DURATION, 60),
+    settlementContractAddress: settlementContractAddress || "",
+    durationSeconds: parseInteger(env.TPS_DURATION, 600),
     txCount,
     amount: env.TPS_AMOUNT || "1",
     completionMode,
     pollIntervalMs: parseInteger(env.TPS_POLL_INTERVAL, 5000),
-    settlementEvent: env.TPS_SETTLEMENT_EVENT || "",
+    settlementEvent,
     txDelayMs,
     sendConcurrency,
     waveSize,
     waveDelayMs,
-    settleTimeoutMs: parseInteger(env.TPS_SETTLE_TIMEOUT, 1800) * 1000,
-    decryptTimeoutMs: parseInteger(env.TPS_DECRYPT_TIMEOUT, 15000000),
+    settleTimeoutMs: parseInteger(env.TPS_SETTLE_TIMEOUT, 14400) * 1000,
+    decryptTimeoutMs: parseInteger(env.TPS_DECRYPT_TIMEOUT, 150000),
     confirmTimeoutMs: parseInteger(env.TPS_CONFIRM_TIMEOUT, 300) * 1000,
     encryptMode,
     recipientAddresses,

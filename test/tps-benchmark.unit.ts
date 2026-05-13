@@ -14,6 +14,7 @@ import { parseBenchmarkConfig, parseWalletCsv } from "./tps/config";
 import { registerEncryptedErc20TokenCommands } from "../src/erc20-commands";
 import { buildAddressPairs } from "./tps/wallet-plan";
 import { getReportTpsMetricLabels, planRecipientBaselines, planSendWaves } from "./tps/runner";
+import { eventLogCompletionKeys, findEventCompletionRecord, markEventRecordComplete } from "./tps/trackers";
 import {
   buildDecryptPayload,
   formatDecryptFailure,
@@ -181,13 +182,23 @@ function testDefaultsBenchmarkAmountToOnePusdc() {
   assert.equal(config.amount, "1");
 }
 
-function testDefaultsDecryptTimeoutToLongGrpcDeadline() {
+function testDefaultsDecryptTimeoutToFastFailureWindow() {
   const config = parseBenchmarkConfig({
     ...REQUIRED_ENV,
     TPS_PRIVATE_KEYS: generatePrivateKeys(50),
   });
 
-  assert.equal(config.decryptTimeoutMs, 15_000_000);
+  assert.equal(config.decryptTimeoutMs, 150_000);
+}
+
+function testDefaultsBenchmarkTimingWindowsForFullRun() {
+  const config = parseBenchmarkConfig({
+    ...REQUIRED_ENV,
+    TPS_PRIVATE_KEYS: generatePrivateKeys(50),
+  });
+
+  assert.equal(config.durationSeconds, 600);
+  assert.equal(config.settleTimeoutMs, 14_400_000);
 }
 
 function testParsesTransferValueOverride() {
@@ -198,6 +209,18 @@ function testParsesTransferValueOverride() {
   });
 
   assert.equal(config.transferValue, "1");
+}
+
+function testTransferEventModeUsesTokenAsEventSource() {
+  const config = parseBenchmarkConfig({
+    ...REQUIRED_ENV,
+    TPS_PRIVATE_KEYS: generatePrivateKeys(50),
+    TPS_MODE: "event",
+    TPS_SETTLEMENT_EVENT: "Transfer",
+    SETTLEMENT_ADDRESS: "0x0000000000000000000000000000000000000009",
+  });
+
+  assert.equal(config.settlementContractAddress, REQUIRED_ENV.PUSDC_TOKEN_ADDRESS);
 }
 
 function testRejectsTrivialEncryptionSource() {
@@ -229,8 +252,8 @@ function testAddressWhitelistKeyMatchesCastKeccakAddress() {
 function testReportShowsOnlyUserFacingTpsMetrics() {
   const labels = getReportTpsMetricLabels();
 
-  assert(labels.includes("Effective TPS"));
   assert(labels.includes("End-to-End TPS"));
+  assert(!labels.includes("Effective TPS"));
   assert(!labels.includes("Send Rate"));
   assert(!labels.includes("On-chain TPS"));
   assert(!labels.includes("FHE TPS"));
@@ -367,6 +390,32 @@ function testBuildsFreshDecryptPayloadForEachTimestamp() {
   assert.notEqual(first.signature, second.signature);
 }
 
+function testEventMatcherUsesTransferHandleFromLogData() {
+  const record = tx({
+    id: 7,
+    txHash: "0x1234",
+    eventKeys: [TEST_HANDLE],
+  });
+  const keys = eventLogCompletionKeys({
+    transactionHash: "0xabcd",
+    topics: ["0xtopic"],
+    data: TEST_HANDLE,
+  });
+
+  assert.equal(findEventCompletionRecord([record], keys)?.id, 7);
+}
+
+function testEventCompletionWaitsForOnChainConfirmation() {
+  const record = tx({ id: 7, onChainAt: undefined });
+
+  assert.equal(markEventRecordComplete(record, 5_000), false);
+  assert.equal(record.completedAt, undefined);
+
+  record.onChainAt = 6_000;
+  assert.equal(markEventRecordComplete(record, 5_000), true);
+  assert.equal(record.completedAt, 6_000);
+}
+
 testIntegerTokenParsing();
 testObservedSettlementsUseCumulativeBaseline();
 testLateConfirmationsAreMarkedAfterSettlementObserved();
@@ -378,8 +427,10 @@ testRejectsFewerThanTwentyFiveSenderWallets();
 testRejectsPrivateKeyOnlyConfig();
 testAcceptsFiftyWallets();
 testDefaultsBenchmarkAmountToOnePusdc();
-testDefaultsDecryptTimeoutToLongGrpcDeadline();
+testDefaultsDecryptTimeoutToFastFailureWindow();
+testDefaultsBenchmarkTimingWindowsForFullRun();
 testParsesTransferValueOverride();
+testTransferEventModeUsesTokenAsEventSource();
 testRejectsTrivialEncryptionSource();
 testRegistersEncryptCommandForHandleGeneration();
 testAddressWhitelistKeyMatchesCastKeccakAddress();
@@ -394,5 +445,7 @@ testFormatsDecryptFailureWithHandleAndAccountContext();
 testRecognizesDecryptPending404Error();
 testRecognizesStaleGrpcClientError();
 testBuildsFreshDecryptPayloadForEachTimestamp();
+testEventMatcherUsesTransferHandleFromLogData();
+testEventCompletionWaitsForOnChainConfirmation();
 
 console.log("tps-benchmark unit tests passed");

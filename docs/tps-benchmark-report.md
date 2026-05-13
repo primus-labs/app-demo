@@ -21,7 +21,9 @@ TPS_TX_COUNT=1000 \
 TPS_SEND_CONCURRENCY=25 \
 TPS_WAVE_SIZE=25 \
 TPS_WAVE_DELAY=200 \
+TPS_DURATION=600 \
 TPS_CONFIRM_TIMEOUT=900 \
+TPS_SETTLE_TIMEOUT=14400 \
 npm run tps:testnet:event
 ```
 
@@ -35,7 +37,7 @@ npm run tps:testnet:event
 - 完成观测：
 - Send Rate：
 - On-chain TPS：
-- Effective TPS：
+- End-to-End TPS：
 - 平均链上确认耗时：
 - 平均端到端耗时：
 

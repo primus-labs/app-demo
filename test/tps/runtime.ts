@@ -44,7 +44,7 @@ export async function createRuntime(config: BenchmarkConfig): Promise<BenchmarkR
   const controllerWallet = new ethers.Wallet(config.privateKeys[0], provider);
   const controllerContract = new ethers.Contract(config.tokenAddress, PUSDCTokenV2_1_ABI, controllerWallet);
   const settlementContract = config.settlementContractAddress
-    ? new ethers.Contract(config.settlementContractAddress, AlphatrionReward_ABI, provider)
+    ? new ethers.Contract(config.settlementContractAddress, [...AlphatrionReward_ABI, ...PUSDCTokenV2_1_ABI], provider)
     : undefined;
   const chainId = Number((await provider.getNetwork()).chainId);
   const decimals = Number(await controllerContract.decimals());
