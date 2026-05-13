@@ -162,10 +162,10 @@ function printCompletionObserver(stats: TrackerStats) {
 }
 
 export function getReportTpsMetricLabels(): string[] {
-  return ["Send Rate", "On-chain TPS", "FHE TPS", "Effective TPS"];
+  return ["End-to-End TPS", "Effective TPS"];
 }
 
-function printReport(records: TxRecord[], testStart: number, testEndTime: number, trackerStats: TrackerStats) {
+function printReport(records: TxRecord[], trackerStats: TrackerStats) {
   const total = records.length;
   const failed = records.filter(r => r.error).length;
   const confirmed = records.filter(r => r.onChainAt).length;
@@ -201,13 +201,6 @@ function printReport(records: TxRecord[], testStart: number, testEndTime: number
     return;
   }
 
-  const firstSentAt = Math.min(...sent.map(r => r.initiatedAt));
-  const lastSentAt = Math.max(...sent.map(r => r.initiatedAt));
-  const sendWindowS = lastSentAt > firstSentAt
-    ? (lastSentAt - firstSentAt) / 1000
-    : Math.max((testEndTime - testStart) / 1000, 0.001);
-  const sendRate = sent.length / sendWindowS;
-
   console.log(`${C.bold}Latency:${C.reset}`);
   if (confirmedRecords.length > 0) {
     console.log(`  Avg on-chain confirmation : ${fmt(average(confirmedRecords.map(r => r.onChainAt! - r.initiatedAt)))}`);
@@ -224,39 +217,32 @@ function printReport(records: TxRecord[], testStart: number, testEndTime: number
   }
 
   console.log(`${C.bold}${C.green}TPS metrics:${C.reset}`);
-  console.log(`  Send Rate      : ${C.yellow}${sendRate.toFixed(3)} tx/s${C.reset}`);
 
   if (confirmedRecords.length > 0) {
     const firstConfirmedAt = Math.min(...confirmedRecords.map(r => r.onChainAt!));
     const lastConfirmedAt = Math.max(...confirmedRecords.map(r => r.onChainAt!));
-    const onChainWindowS = (lastConfirmedAt - firstConfirmedAt) / 1000;
-    const onChainTPS = onChainWindowS > 0 ? confirmed / onChainWindowS : confirmed;
-    console.log(`  On-chain TPS   : ${C.yellow}${onChainTPS.toFixed(3)} tx/s${C.reset}`);
 
     if (done.length > 0) {
-      const firstConfirmedAt = Math.min(...confirmedRecords.map(r => r.onChainAt!));
-      const lastConfirmedAt = Math.max(...confirmedRecords.map(r => r.onChainAt!));
       const lastCompletedAt = Math.max(...done.map(r => r.completedAt!));
       // console.log("firstConfirmedAt:", firstConfirmedAt);
       // console.log("lastConfirmedAt:", lastConfirmedAt);
       // console.log("lastCompletedAt:", lastCompletedAt);
 
-      // FHE TPS: window from last on-chain confirmation to last FHE completion
+      // End-to-End TPS: window from last on-chain confirmation to last FHE completion
       const fheWindowS = (lastCompletedAt - lastConfirmedAt) / 1000;
       const fheTPS = completed / Math.max(fheWindowS, 0.001);
-      console.log(`  FHE TPS        : ${C.yellow}${fheTPS.toFixed(6)} tx/s${C.reset}  (window=${fheWindowS.toFixed(1)}s)`);
+      console.log(`  End-to-End TPS : ${C.yellow}${fheTPS.toFixed(6)} tx/s${C.reset}`);
 
       // Effective TPS: window from first on-chain confirmation to last completion
       const e2eWindowS = (lastCompletedAt - firstConfirmedAt) / 1000;
       const effectiveTPS = completed / Math.max(e2eWindowS, 0.001);
-      console.log(`  Effective TPS  : ${C.cyan}${effectiveTPS.toFixed(6)} tx/s${C.reset}  (window=${e2eWindowS.toFixed(1)}s)`);
+      console.log(`  Effective TPS  : ${C.cyan}${effectiveTPS.toFixed(6)} tx/s${C.reset}`);
     } else {
-      console.log(`  FHE TPS        : n/a (no balance settlements observed)`);
+      console.log(`  End-to-End TPS : n/a (no balance settlements observed)`);
       console.log(`  Effective TPS  : n/a (no balance settlements observed)`);
     }
   } else {
-    console.log(`  On-chain TPS   : n/a (no confirmed transactions)`);
-    console.log(`  FHE TPS        : n/a (no balance settlements observed)`);
+    console.log(`  End-to-End TPS : n/a (no balance settlements observed)`);
     console.log(`  Effective TPS  : n/a (no balance settlements observed)`);
   }
 }
@@ -353,12 +339,11 @@ export async function runBenchmark(config: BenchmarkConfig) {
   }
 
   sendDone = true;
-  const testEndTime = Date.now();
   await withTimeout(
     Promise.all(confirmPromises),
     config.confirmTimeoutMs,
     `confirmation timeout after ${config.confirmTimeoutMs / 1000}s`
   );
   const trackerStats = await trackerDone;
-  printReport(records, testStart, testEndTime, trackerStats);
+  printReport(records, trackerStats);
 }

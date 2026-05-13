@@ -226,13 +226,14 @@ function testAddressWhitelistKeyMatchesCastKeccakAddress() {
   );
 }
 
-function testReportKeepsOnlyOneCompletionTpsMetric() {
+function testReportShowsOnlyUserFacingTpsMetrics() {
   const labels = getReportTpsMetricLabels();
 
-  assert(labels.includes("On-chain TPS"));
-  assert(labels.includes("FHE TPS"));
   assert(labels.includes("Effective TPS"));
-  assert(!labels.includes("Complete TPS"));
+  assert(labels.includes("End-to-End TPS"));
+  assert(!labels.includes("Send Rate"));
+  assert(!labels.includes("On-chain TPS"));
+  assert(!labels.includes("FHE TPS"));
 }
 
 function testPlansOneThousandTransfersAsTwentyWalletWaves() {
@@ -382,7 +383,7 @@ testParsesTransferValueOverride();
 testRejectsTrivialEncryptionSource();
 testRegistersEncryptCommandForHandleGeneration();
 testAddressWhitelistKeyMatchesCastKeccakAddress();
-testReportKeepsOnlyOneCompletionTpsMetric();
+testReportShowsOnlyUserFacingTpsMetrics();
 testPlansOneThousandTransfersAsTwentyWalletWaves();
 testPlansOnlyRecipientsTouchedByPlannedTransfers();
 testRejectsWaveSizeLargerThanPairCount();
