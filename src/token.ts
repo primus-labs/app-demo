@@ -8,7 +8,6 @@ import { requestEncrypt, requestDecrypt, FheType, estimateFheFee } from "@primus
 import { getACLContract } from "@primuslabs/fhe-sdk/dist/utils";
 import 'dotenv/config';
 
-
 export class Erc20Token {
   showHandle: boolean = true;
   feeValue: bigint = 0n;
@@ -46,9 +45,8 @@ export class Erc20Token {
     if (options?.feeValue) return { value: options.feeValue };
     return {};
   }
-  async getFheFee(functionName: string) {
-    const { totalFee } = await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID(), verbose: 1 });
-    return totalFee;
+  protected async getFheFee(functionName: string) {
+    return 0n;
   }
 
   // ========== Hooks for Encrypted Version ==========
@@ -138,10 +136,14 @@ export class Erc20Token {
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("transfer") });
+    {
+      const gasEstimate = await this.tokenContract.transfer.estimateGas(to, amountHandle, txOpt);
+      console.log("Gas estimate:", gasEstimate.toString());
+    }
     const tx = await this.tokenContract.transfer(to, amountHandle, txOpt);
     console.log("Transfer tx:", tx.hash);
-    await tx.wait();
-    console.log("Transfer Confirmed");
+    const receipt = await tx.wait();
+    console.log("Transfer Confirmed. Gas used: " + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 
@@ -151,8 +153,8 @@ export class Erc20Token {
     if (this.showHandle) console.log("Approve amountHandle:", this.formatHandle(amountHandle));
     const tx = await this.tokenContract.approve(spender, amountHandle);
     console.log("Approve tx:", tx.hash);
-    await tx.wait();
-    console.log("Approve Confirmed");
+    const receipt = await tx.wait();
+    console.log("Approve Confirmed. Gas used: " + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 
@@ -163,8 +165,8 @@ export class Erc20Token {
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("transferFrom") });
     const tx = await this.tokenContract.transferFrom(from, to, amountHandle, txOpt);
     console.log("TransferFrom tx:", tx.hash);
-    await tx.wait();
-    console.log("TransferFrom Confirmed");
+    const receipt = await tx.wait();
+    console.log("TransferFrom Confirmed. Gas used: " + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 }
@@ -186,6 +188,11 @@ export class EncryptedErc20Token extends Erc20Token {
 
   protected getFheType(): FheType {
     return FheType.ve_uint256;
+  }
+
+  protected async getFheFee(functionName: string) {
+    const { totalFee } = await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID(), verbose: 1 });
+    return totalFee;
   }
 
   protected async encrypt(value: number | bigint, timeout: number = 30000): Promise<any> {
@@ -308,10 +315,14 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Deposit amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("deposit") });
+    {
+      const gasEstimate = await this.tokenContract.deposit.estimateGas(amountHandle, txOpt);
+      console.log("Gas estimate:", gasEstimate.toString());
+    }
     const tx = await this.tokenContract.deposit(amountHandle, txOpt);
     console.log("Deposit tx:", tx.hash);
-    await tx.wait();
-    console.log("Deposit Confirmed");
+    const receipt = await tx.wait();
+    console.log("Deposit Confirmed. Gas used:" + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 
