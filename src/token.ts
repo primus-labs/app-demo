@@ -1,12 +1,17 @@
-import { ethers as EthersT, Wallet } from "ethers";
+import { ethers as EthersT, Wallet, Interface } from "ethers";
 import { PrivyTokenU64V2_1_ABI } from "./abis/PrivyTokenU64V2_1_ABI";
 import { OZERC20_ABI } from "./abis/OZERC20_ABI";
 import { PUSDCTokenV2_1_ABI } from "./abis/PUSDCTokenV2_1_ABI";
 import { PUSDCTokenU64V2_1_ABI } from "./abis/PUSDCTokenU64V2_1_ABI";
 import { PMUSDTokenV2_1_ABI } from "./abis/PMUSDTokenV2_1_ABI";
-import { requestEncrypt, requestDecrypt, FheType, estimateFheFee } from "@primuslabs/fhe-sdk";
-import { getACLContract } from "@primuslabs/fhe-sdk/dist/utils";
+import { FheSDK, FheType } from "primus-fhe-sdk";
+import abiACL from "primus-fhe-sdk/dist/abi/ACL.json"
+import abiFHEExecutor from "primus-fhe-sdk/dist/abi/FHEExecutor.json"
+import { ErrorParser } from "./utils";
 import 'dotenv/config';
+// Extract ABIs from JSON imports
+const { abi: aclABI } = abiACL;
+const { abi: fheExecutorABI } = abiFHEExecutor;
 
 export class Erc20Token {
   showHandle: boolean = true;
@@ -21,6 +26,7 @@ export class Erc20Token {
 
   protected tokenAddress: string;
   protected tokenContract: EthersT.Contract;
+  protected errorParser: ErrorParser;
 
   private decimalsCache: number | null = null;
 
@@ -29,8 +35,9 @@ export class Erc20Token {
     const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
     this.provider = new EthersT.JsonRpcProvider(RPC_URL);
     this.signer = PRIVATE_KEY ? new EthersT.Wallet(PRIVATE_KEY, this.provider) : null;
-    this.tokenContract = new EthersT.Contract(tokenAddress, tokenABI, this.signer ?? this.provider);
     this.tokenAddress = tokenAddress;
+    this.tokenContract = new EthersT.Contract(tokenAddress, tokenABI, this.signer ?? this.provider);
+    this.errorParser = new ErrorParser().addAbi(tokenABI);
   }
 
   async getChainID(): Promise<number> {
@@ -137,10 +144,10 @@ export class Erc20Token {
     if (this.showHandle) console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("transfer") });
     {
-      const gasEstimate = await this.tokenContract.transfer.estimateGas(to, amountHandle, txOpt);
-      console.log("Gas estimate:", gasEstimate.toString());
+      const gasEstimate = await this.tokenContract.transfer.estimateGas(to, amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("Transfer Gas estimate:", gasEstimate.toString());
     }
-    const tx = await this.tokenContract.transfer(to, amountHandle, txOpt);
+    const tx = await this.tokenContract.transfer(to, amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("Transfer tx:", tx.hash);
     const receipt = await tx.wait();
     console.log("Transfer Confirmed. Gas used: " + receipt.gasUsed.toString());
@@ -163,7 +170,11 @@ export class Erc20Token {
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("TransferFrom amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("transferFrom") });
-    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, txOpt);
+    {
+      const gasEstimate = await this.tokenContract.transferFrom.estimateGas(from, to, amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("TransferFrom Gas estimate:", gasEstimate.toString());
+    }
+    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("TransferFrom tx:", tx.hash);
     const receipt = await tx.wait();
     console.log("TransferFrom Confirmed. Gas used: " + receipt.gasUsed.toString());
@@ -181,9 +192,14 @@ export class OZERC20Token extends Erc20Token {
 
 export class EncryptedErc20Token extends Erc20Token {
   private readonly ACL_ADDRESS = process.env.ACL_ADDRESS || "";
+  protected fheSDK: FheSDK;
 
   constructor(tokenAddress: string, tokenABI: EthersT.Interface | EthersT.InterfaceAbi) {
     super(tokenAddress, tokenABI);
+    this.errorParser.addAbi(aclABI).addAbi(fheExecutorABI);
+    this.fheSDK = new FheSDK({
+      systemInfo: { decryptionUrl: process.env.DECRYPTION_RPC_URL || undefined }
+    });
   }
 
   protected getFheType(): FheType {
@@ -191,45 +207,21 @@ export class EncryptedErc20Token extends Erc20Token {
   }
 
   protected async getFheFee(functionName: string) {
-    const { totalFee } = await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID(), verbose: 1 });
+    const { totalFee } = await this.fheSDK.estimateFheFee(this.tokenAddress, functionName);
     return totalFee;
   }
 
   protected async encrypt(value: number | bigint, timeout: number = 30000): Promise<any> {
-    return await requestEncrypt(
-      this.signer as Wallet,
-      this.ACL_ADDRESS,
-      value,
-      this.getFheType(),
-      await this.getChainID(),
-      null,
-      { isMock: this.isMock }
-    );
+    return await this.fheSDK.requestEncryption(value, this.getFheType());
   }
 
   protected async decrypt(handle: string, timeout: number = 60000): Promise<any> {
-    return await requestDecrypt(
-      this.signer as Wallet,
-      this.ACL_ADDRESS,
-      this.getFheType(),
-      handle,
-      { isMock: this.isMock, timeout: timeout }
-    );
+    const res = await this.fheSDK.requestDecryption(handle);
+    return res.value;
   }
 
   async allowForDecryption(handle: string, account?: string) {
-    const aclContract = await getACLContract(this.ACL_ADDRESS, this.signer ?? this.provider);
-    let tx;
-    if (account) {
-      tx = await aclContract['accessPolicy(bytes32,address,uint8)'](handle, account, 2);
-    } else {
-      tx = await aclContract.allowForDecryption([handle]);
-    }
-    console.log("allowForDecryption tx:", tx.hash);
-    await tx.wait();
-    console.log("Confirmed");
-
-    return { txHash: tx.hash };
+    return this.fheSDK.allowForDecryption(handle, account).catch(this.errorParser.catch);
   }
 
   async userDecrypt(handle: string): Promise<any> {
@@ -316,10 +308,10 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     console.log("Deposit amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("deposit") });
     {
-      const gasEstimate = await this.tokenContract.deposit.estimateGas(amountHandle, txOpt);
-      console.log("Gas estimate:", gasEstimate.toString());
+      const gasEstimate = await this.tokenContract.deposit.estimateGas(amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("Deposit Gas estimate:", gasEstimate.toString());
     }
-    const tx = await this.tokenContract.deposit(amountHandle, txOpt);
+    const tx = await this.tokenContract.deposit(amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("Deposit tx:", tx.hash);
     const receipt = await tx.wait();
     console.log("Deposit Confirmed. Gas used:" + receipt.gasUsed.toString());
@@ -331,7 +323,11 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Claim amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("claim") });
-    const tx = await this.tokenContract.claim(to, amountHandle, txOpt);
+    {
+      const gasEstimate = await this.tokenContract.claim.estimateGas(to, amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("Claim Gas estimate:", gasEstimate.toString());
+    }
+    const tx = await this.tokenContract.claim(to, amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("Claim tx:", tx.hash);
     await tx.wait();
     console.log("Claim Confirmed");
