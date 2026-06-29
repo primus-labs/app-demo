@@ -1,11 +1,11 @@
 #!/usr/bin/env tsx
 import { registerPrivyTokenWithWhiteListAndDepositCommands } from "./erc20-commands";
 import { Command } from "commander";
-import { PUSDCTokenV2_1 } from "./token";
+import { PUSDCTokenU64V2_1 } from "./token";
 import { removeCommandIfExists } from "./utils";
 
 export function registerPUSDCCLI(program: Command) {
-  const token = new PUSDCTokenV2_1();
+  const token = new PUSDCTokenU64V2_1();
   registerPrivyTokenWithWhiteListAndDepositCommands(program, token);
 
   removeCommandIfExists(program, 'mint');

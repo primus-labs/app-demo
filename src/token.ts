@@ -2,11 +2,18 @@ import { ethers as EthersT, Wallet } from "ethers";
 import { PrivyTokenU64V2_1_ABI } from "./abis/PrivyTokenU64V2_1_ABI";
 import { OZERC20_ABI } from "./abis/OZERC20_ABI";
 import { PUSDCTokenV2_1_ABI } from "./abis/PUSDCTokenV2_1_ABI";
+import { PUSDCTokenU64V2_1_ABI } from "./abis/PUSDCTokenU64V2_1_ABI";
 import { PMUSDTokenV2_1_ABI } from "./abis/PMUSDTokenV2_1_ABI";
-import { requestEncrypt, requestDecrypt, FheType, estimateFheFee } from "@primuslabs/fhe-sdk";
-import { getACLContract } from "@primuslabs/fhe-sdk/dist/utils";
+import { FheSDK, FheType } from "primus-fhe-sdk";
+import abiACL from "primus-fhe-sdk/dist/abi/ACL.json"
+import abiFHEExecutor from "primus-fhe-sdk/dist/abi/FHEExecutor.json"
+import abiCiphertextVerification from "primus-fhe-sdk/dist/abi/CiphertextVerification.json"
+import { ErrorParser } from "./utils";
 import 'dotenv/config';
-
+// Extract ABIs from JSON imports
+const { abi: aclABI } = abiACL;
+const { abi: fheExecutorABI } = abiFHEExecutor;
+const { abi: ciphertextVerificationABI } = abiCiphertextVerification;
 
 export class Erc20Token {
   showHandle: boolean = true;
@@ -21,6 +28,7 @@ export class Erc20Token {
 
   protected tokenAddress: string;
   protected tokenContract: EthersT.Contract;
+  protected errorParser: ErrorParser;
 
   private decimalsCache: number | null = null;
 
@@ -29,8 +37,9 @@ export class Erc20Token {
     const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
     this.provider = new EthersT.JsonRpcProvider(RPC_URL);
     this.signer = PRIVATE_KEY ? new EthersT.Wallet(PRIVATE_KEY, this.provider) : null;
-    this.tokenContract = new EthersT.Contract(tokenAddress, tokenABI, this.signer ?? this.provider);
     this.tokenAddress = tokenAddress;
+    this.tokenContract = new EthersT.Contract(tokenAddress, tokenABI, this.signer ?? this.provider);
+    this.errorParser = new ErrorParser().addAbi(tokenABI);
   }
 
   async getChainID(): Promise<number> {
@@ -45,9 +54,8 @@ export class Erc20Token {
     if (options?.feeValue) return { value: options.feeValue };
     return {};
   }
-  async getFheFee(functionName: string) {
-    const { totalFee } = await estimateFheFee(this.tokenAddress, functionName, { chainId: await this.getChainID(), verbose: 1 });
-    return totalFee;
+  protected async getFheFee(functionName: string) {
+    return 0n;
   }
 
   // ========== Hooks for Encrypted Version ==========
@@ -60,6 +68,7 @@ export class Erc20Token {
   protected formatHandle(uve: any): any {
     if (typeof uve === "string") return uve;
     if (uve && uve.handle) {
+      if (typeof uve.handle === "string") return uve.handle.startsWith("0x") ? uve.handle : `0x${uve.handle}`;
       return "0x" + Buffer.from(uve.handle).toString("hex");
     }
     return String(uve);
@@ -88,6 +97,7 @@ export class Erc20Token {
 
   async balanceOf(account: string) {
     const balanceHandle = await this.tokenContract.balanceOf(account);
+    console.log('balanceHandle', balanceHandle)
     const balance = await this.decrypt(balanceHandle);
     const decimals = await this.decimals();
     const formattedBalance = EthersT.formatUnits(balance, decimals);
@@ -136,10 +146,14 @@ export class Erc20Token {
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("Transfer amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("transfer") });
-    const tx = await this.tokenContract.transfer(to, amountHandle, txOpt);
+    {
+      const gasEstimate = await this.tokenContract.transfer.estimateGas(to, amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("Transfer Gas estimate:", gasEstimate.toString());
+    }
+    const tx = await this.tokenContract.transfer(to, amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("Transfer tx:", tx.hash);
-    await tx.wait();
-    console.log("Transfer Confirmed");
+    const receipt = await tx.wait();
+    console.log("Transfer Confirmed. Gas used: " + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 
@@ -149,8 +163,8 @@ export class Erc20Token {
     if (this.showHandle) console.log("Approve amountHandle:", this.formatHandle(amountHandle));
     const tx = await this.tokenContract.approve(spender, amountHandle);
     console.log("Approve tx:", tx.hash);
-    await tx.wait();
-    console.log("Approve Confirmed");
+    const receipt = await tx.wait();
+    console.log("Approve Confirmed. Gas used: " + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 
@@ -159,10 +173,14 @@ export class Erc20Token {
     const amountHandle = await this.encrypt(EthersT.parseUnits(amount, decimals));
     if (this.showHandle) console.log("TransferFrom amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("transferFrom") });
-    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, txOpt);
+    {
+      const gasEstimate = await this.tokenContract.transferFrom.estimateGas(from, to, amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("TransferFrom Gas estimate:", gasEstimate.toString());
+    }
+    const tx = await this.tokenContract.transferFrom(from, to, amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("TransferFrom tx:", tx.hash);
-    await tx.wait();
-    console.log("TransferFrom Confirmed");
+    const receipt = await tx.wait();
+    console.log("TransferFrom Confirmed. Gas used: " + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 }
@@ -176,51 +194,36 @@ export class OZERC20Token extends Erc20Token {
 }
 
 export class EncryptedErc20Token extends Erc20Token {
-  private readonly ACL_ADDRESS = process.env.ACL_ADDRESS || "";
+  protected fheSDK: FheSDK;
 
   constructor(tokenAddress: string, tokenABI: EthersT.Interface | EthersT.InterfaceAbi) {
     super(tokenAddress, tokenABI);
+    this.errorParser.addAbi(aclABI).addAbi(fheExecutorABI).addAbi(ciphertextVerificationABI);
+    this.fheSDK = new FheSDK({
+      systemInfo: { decryptionUrl: process.env.DECRYPTION_RPC_URL || undefined }
+    });
   }
 
   protected getFheType(): FheType {
     return FheType.ve_uint256;
   }
 
+  protected async getFheFee(functionName: string) {
+    const { totalFee } = await this.fheSDK.estimateFheFee(this.tokenAddress, functionName);
+    return totalFee;
+  }
+
   protected async encrypt(value: number | bigint, timeout: number = 30000): Promise<any> {
-    return await requestEncrypt(
-      this.signer as Wallet,
-      this.ACL_ADDRESS,
-      value,
-      this.getFheType(),
-      await this.getChainID(),
-      null,
-      { isMock: this.isMock }
-    );
+    return await this.fheSDK.encryptAndVerifyProof(this.tokenAddress as `0x${string}`, value, this.getFheType());
   }
 
   protected async decrypt(handle: string, timeout: number = 60000): Promise<any> {
-    return await requestDecrypt(
-      this.signer as Wallet,
-      this.ACL_ADDRESS,
-      this.getFheType(),
-      handle,
-      { isMock: this.isMock, timeout: timeout }
-    );
+    const res = await this.fheSDK.requestDecryption(handle);
+    return res.value;
   }
 
   async allowForDecryption(handle: string, account?: string) {
-    const aclContract = await getACLContract(this.ACL_ADDRESS, this.signer ?? this.provider);
-    let tx;
-    if (account) {
-      tx = await aclContract['accessPolicy(bytes32,address,uint8)'](handle, account, 2);
-    } else {
-      tx = await aclContract.allowForDecryption([handle]);
-    }
-    console.log("allowForDecryption tx:", tx.hash);
-    await tx.wait();
-    console.log("Confirmed");
-
-    return { txHash: tx.hash };
+    return this.fheSDK.allowForDecryption(handle, account).catch(this.errorParser.catch);
   }
 
   async userDecrypt(handle: string): Promise<any> {
@@ -306,10 +309,14 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Deposit amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("deposit") });
-    const tx = await this.tokenContract.deposit(amountHandle, txOpt);
+    {
+      const gasEstimate = await this.tokenContract.deposit.estimateGas(amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("Deposit Gas estimate:", gasEstimate.toString());
+    }
+    const tx = await this.tokenContract.deposit(amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("Deposit tx:", tx.hash);
-    await tx.wait();
-    console.log("Deposit Confirmed");
+    const receipt = await tx.wait();
+    console.log("Deposit Confirmed. Gas used:" + receipt.gasUsed.toString());
     return { amountHandle: this.formatHandle(amountHandle), txHash: tx.hash };
   }
 
@@ -318,7 +325,11 @@ export class PrivyTokenWithWhiteListAndDeposit extends PrivyTokenWithWhiteList {
     const amountHandle = EthersT.parseUnits(amount, decimals);
     console.log("Claim amountHandle:", this.formatHandle(amountHandle));
     const txOpt = this.txOptions({ feeValue: await this.getFheFee("claim") });
-    const tx = await this.tokenContract.claim(to, amountHandle, txOpt);
+    {
+      const gasEstimate = await this.tokenContract.claim.estimateGas(to, amountHandle, txOpt).catch(this.errorParser.catch);
+      console.log("Claim Gas estimate:", gasEstimate.toString());
+    }
+    const tx = await this.tokenContract.claim(to, amountHandle, txOpt).catch(this.errorParser.catch);
     console.log("Claim tx:", tx.hash);
     await tx.wait();
     console.log("Claim Confirmed");
@@ -346,6 +357,15 @@ export class PUSDCTokenV2_1 extends PrivyTokenWithWhiteListAndDeposit {
   constructor() {
     const PUSDC_TOKEN_ADDRESS = process.env.PUSDC_TOKEN_ADDRESS || "";
     super(PUSDC_TOKEN_ADDRESS, PUSDCTokenV2_1_ABI);
+  }
+}
+export class PUSDCTokenU64V2_1 extends PrivyTokenWithWhiteListAndDeposit {
+  protected getFheType(): FheType {
+    return FheType.ve_uint64;
+  }
+  constructor() {
+    const PUSDC_TOKEN_ADDRESS = process.env.PUSDC_TOKEN_ADDRESS || "";
+    super(PUSDC_TOKEN_ADDRESS, PUSDCTokenU64V2_1_ABI);
   }
 }
 

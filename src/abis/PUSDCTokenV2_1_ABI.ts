@@ -307,11 +307,6 @@ export const PUSDCTokenV2_1_ABI = [
               "type": "bytes32"
             },
             {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
               "internalType": "bytes",
               "name": "data",
               "type": "bytes"
@@ -569,11 +564,6 @@ export const PUSDCTokenV2_1_ABI = [
               "type": "bytes32"
             },
             {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
-            },
-            {
               "internalType": "bytes",
               "name": "data",
               "type": "bytes"
@@ -613,11 +603,6 @@ export const PUSDCTokenV2_1_ABI = [
               "internalType": "bytes32",
               "name": "handle",
               "type": "bytes32"
-            },
-            {
-              "internalType": "enum PayloadType",
-              "name": "dataType",
-              "type": "uint8"
             },
             {
               "internalType": "bytes",
